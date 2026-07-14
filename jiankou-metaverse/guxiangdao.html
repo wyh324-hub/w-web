@@ -1,0 +1,1420 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>古香道 · 穿越封锁线</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { overflow: hidden; background: #1a2830; font-family: "PingFang SC", "Microsoft YaHei", sans-serif; color: #fff; }
+    #canvas-container { position: fixed; inset: 0; z-index: 0; }
+    .top-tag { position: fixed; top: 14px; left: 14px; z-index: 10; background: rgba(60,80,50,0.88); padding: 5px 12px; border-radius: 14px; font-size: 11px; }
+    .back-link { position: fixed; top: 14px; right: 14px; z-index: 10; color: #ccc; font-size: 11px; text-decoration: none; background: rgba(255,255,255,0.1); padding: 6px 12px; border-radius: 14px; }
+    .audio-btn { position: fixed; top: 50px; right: 14px; z-index: 10; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.3); color: #fff; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; font-size: 16px; }
+    .mini-panel { position: fixed; bottom: 16px; right: 16px; z-index: 20; width: 280px; background: rgba(10,14,10,0.82); border: 1px solid rgba(255,255,255,0.15); border-radius: 12px; padding: 12px 14px; }
+    .mini-year { font-size: 10px; color: #6a9a5a; margin-bottom: 4px; }
+    .mini-title { font-size: 13px; font-weight: bold; color: #FFD700; margin-bottom: 6px; }
+    .mini-dialogue { font-size: 11px; line-height: 1.5; color: #d8e8c8; border-left: 2px solid #5a8a4a; padding-left: 8px; font-style: italic; }
+    .narration-bar { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); z-index: 18; max-width: 540px; width: 90%; background: rgba(8,14,10,0.82); border: 1px solid rgba(120,180,90,0.4); border-radius: 10px; padding: 10px 16px; font-size: 12px; line-height: 1.55; color: #d0e0c8; font-style: italic; display: none; }
+    .narration-bar.show { display: block; }
+    #bubble-layer { position: fixed; inset: 0; z-index: 25; pointer-events: none; overflow: hidden; }
+    .speech-bubble {
+      position: absolute; transform: translate(-50%, -100%);
+      background: rgba(248, 252, 240, 0.96); color: #1a2414; border: 2px solid #5a7a4a;
+      border-radius: 12px; padding: 8px 12px; max-width: 220px; font-size: 12px; line-height: 1.45;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.35); opacity: 0; transition: opacity 0.25s;
+    }
+    .speech-bubble.show { opacity: 1; }
+    .speech-bubble::after {
+      content: ''; position: absolute; left: 50%; bottom: -8px; transform: translateX(-50%);
+      border: 8px solid transparent; border-top-color: #5a7a4a;
+    }
+    .speech-bubble .speaker-name { font-size: 10px; color: #5a7a4a; font-weight: bold; margin-bottom: 3px; }
+    .speech-bubble .bubble-text { color: #1a2414; font-size: 13px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
+    .choice-overlay { position: fixed; inset: 0; z-index: 40; background: rgba(0,0,0,0.55); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; }
+    .choice-overlay.show { display: flex; }
+    .choice-modal { width: min(440px, 92vw); background: linear-gradient(160deg, rgba(18,24,14,0.97), rgba(10,12,8,0.98)); border: 2px solid #5a7a4a; border-radius: 16px; padding: 22px 24px; }
+    .choice-modal h3 { font-size: 15px; color: #FFD700; margin-bottom: 6px; }
+    .choice-modal .prompt { font-size: 12px; color: #aaa; margin-bottom: 14px; line-height: 1.5; }
+    .choice-modal-btn { display: block; width: 100%; background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.2); color: #eee; padding: 11px 14px; border-radius: 10px; cursor: pointer; text-align: left; font-size: 13px; margin-bottom: 8px; line-height: 1.45; }
+    .choice-modal-btn:hover { background: rgba(90,120,70,0.55); }
+    .choice-modal-btn .opt { color: #FFD700; font-weight: bold; margin-right: 6px; }
+    .result-popup { position: fixed; bottom: 16px; left: 16px; z-index: 30; width: 280px; display: none; background: rgba(14,18,12,0.95); border: 2px solid #5a7a4a; border-radius: 12px; padding: 14px; text-align: center; }
+    .result-popup.show { display: block; }
+    .result-popup.success { border-color: #FFD700; }
+    .result-popup.badge-together { z-index: 210; }
+    .result-icon { font-size: 26px; margin-bottom: 4px; }
+    .result-title { font-size: 13px; font-weight: bold; margin-bottom: 4px; }
+    .result-desc { font-size: 11px; color: #aaa; line-height: 1.5; margin-bottom: 8px; white-space: pre-line; }
+    .result-close { background: #5a7a4a; color: #fff; border: none; padding: 5px 18px; border-radius: 12px; font-size: 11px; cursor: pointer; }
+    .scene-nav { position: fixed; top: 14px; left: 50%; transform: translateX(-50%); z-index: 12; display: flex; gap: 6px; background: rgba(10,14,10,0.75); padding: 5px 8px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.15); }
+    .scene-nav button { background: transparent; border: none; color: #bbb; font-size: 11px; padding: 5px 12px; border-radius: 14px; cursor: pointer; white-space: nowrap; }
+    .scene-nav button.active { background: #5a7a4a; color: #fff; font-weight: bold; }
+    .scene-nav button:hover:not(.active) { color: #fff; background: rgba(255,255,255,0.1); }
+    #sceneLoading { position: fixed; inset: 0; z-index: 50; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,0.55); font-size: 13px; color: #a8d890; }
+    #sceneLoading.show { display: flex; flex-direction: column; gap: 8px; }
+    #loadProgress { font-size: 11px; color: #d0e8c0; }
+    #protocolWarn {
+      position: fixed; inset: 0; z-index: 200; display: none;
+      align-items: center; justify-content: center; background: rgba(0,0,0,0.82);
+      padding: 24px;
+    }
+    #protocolWarn.show { display: flex; }
+    #protocolWarn .warn-box {
+      max-width: 460px; background: #3a1818; border: 2px solid #c44;
+      border-radius: 14px; padding: 22px 24px; text-align: center; line-height: 1.7;
+    }
+    #protocolWarn h3 { color: #ffb4b4; margin-bottom: 10px; font-size: 16px; }
+    #protocolWarn p { color: #f0d8d8; font-size: 13px; }
+    .intro-overlay {
+      position: fixed; inset: 0; z-index: 45; display: none;
+      align-items: center; justify-content: center;
+      background: rgba(0,0,0,0.62); backdrop-filter: blur(3px); padding: 20px;
+    }
+    .intro-overlay.show { display: flex; }
+    .intro-panel {
+      width: min(560px, 94vw); max-height: 78vh; overflow-y: auto;
+      background: linear-gradient(160deg, rgba(14,20,12,0.98), rgba(8,10,8,0.99));
+      border: 2px solid #6a8a5a; border-radius: 16px; padding: 22px 24px 18px;
+    }
+    .intro-panel h3 { font-size: 16px; color: #FFD700; margin-bottom: 12px; }
+    .intro-panel .intro-text {
+      font-size: 13px; line-height: 1.75; color: #d8e8c8; text-align: justify;
+      margin-bottom: 16px;
+    }
+    .intro-skip-btn {
+      display: block; width: 100%; background: rgba(90,120,70,0.55);
+      border: 1px solid rgba(255,255,255,0.25); color: #fff;
+      padding: 10px 14px; border-radius: 10px; cursor: pointer; font-size: 13px;
+    }
+    .intro-skip-btn:hover { background: rgba(90,120,70,0.85); }
+    .hidden-chapter {
+      position: fixed; inset: 0; z-index: 100; display: none;
+      align-items: center; justify-content: center;
+      background: #000; padding: 24px 20px; opacity: 0;
+      transition: opacity 1.8s ease;
+    }
+    .hidden-chapter.show { display: flex; opacity: 1; }
+    .hidden-chapter-inner {
+      width: min(620px, 96vw); max-height: 88vh; overflow-y: auto;
+      color: #e8e4d8; padding: 8px 4px 16px;
+    }
+    .hidden-tag {
+      display: inline-block; font-size: 11px; color: #8a9a6a;
+      border: 1px solid #5a6a4a; border-radius: 12px; padding: 3px 10px; margin-bottom: 10px;
+    }
+    .hidden-chapter h2 { font-size: 18px; color: #d4c890; margin-bottom: 8px; line-height: 1.4; }
+    .hidden-unlock { font-size: 11px; color: #7a8a6a; margin-bottom: 18px; }
+    .hidden-chapter .hidden-body { font-size: 13px; line-height: 1.8; text-align: justify; }
+    .hidden-chapter .hidden-body h4 { font-size: 14px; color: #c8b878; margin: 18px 0 8px; }
+    .hidden-chapter .hidden-body p { margin-bottom: 10px; color: #d0ccc0; }
+    .hidden-body.typing::after {
+      content: '▌'; color: #c8b878; margin-left: 2px;
+      animation: cursorBlink 0.75s step-end infinite;
+    }
+    @keyframes cursorBlink { 50% { opacity: 0; } }
+    .hidden-skip-btn {
+      display: block; width: 100%; margin-top: 20px;
+      background: rgba(60,60,60,0.8); border: 1px solid rgba(255,255,255,0.2);
+      color: #ccc; padding: 10px 14px; border-radius: 10px; cursor: pointer; font-size: 13px;
+    }
+    .hidden-skip-btn:hover { background: rgba(80,80,80,0.95); color: #fff; }
+  </style>
+  <link rel="stylesheet" href="assets/badge-reveal.css" />
+</head>
+<body>
+<div id="canvas-container"></div>
+<div id="sceneLoading"><span id="loadTitle">加载古香道场景…</span><div id="loadProgress"></div></div>
+
+<div id="protocolWarn">
+  <div class="warn-box">
+    <h3>⚠️ 请用 Live Server 打开</h3>
+    <p>不能直接双击打开 HTML 文件。<br>请在 VS Code 中右键 <b>guxiangdao.html</b> → <b>Open with Live Server</b>，<br>然后用浏览器访问 <b>http://localhost:5500/guxiangdao.html</b><br>（需通过本地服务器加载 GLB 模型）</p>
+  </div>
+</div>
+
+<div class="top-tag" id="topTag">🛤️ 古香道 · 穿越封锁线</div>
+<button class="audio-btn" id="audioBtn" onclick="toggleAudio()">🔊</button>
+
+<nav class="scene-nav" id="sceneNav">
+  <button data-scene="1" onclick="switchScene(1)">场景一·脚下的路</button>
+  <button data-scene="2" onclick="switchScene(2)">场景二·盘查</button>
+  <button data-scene="3" onclick="switchScene(3)">场景三·自行车</button>
+</nav>
+
+<div class="mini-panel">
+  <div class="mini-year" id="miniYear">1942年春</div>
+  <div class="mini-title" id="miniTitle">脚下的路</div>
+  <div class="mini-dialogue" id="miniDialogue">等待剧情…</div>
+</div>
+
+<div class="narration-bar" id="narrationBar"></div>
+<div id="bubble-layer"></div>
+
+<div class="intro-overlay" id="introOverlay">
+  <div class="intro-panel">
+    <h3>📜 妙峰山古香道 · 史话</h3>
+    <div class="intro-text" id="introText"></div>
+    <button class="intro-skip-btn" type="button" onclick="skipIntro()">跳过阅读</button>
+  </div>
+</div>
+
+<div class="choice-overlay" id="choiceModal">
+  <div class="choice-modal">
+    <h3 id="choiceTitle">你的选择</h3>
+    <p class="prompt" id="choicePrompt"></p>
+    <div id="choiceBtns"></div>
+  </div>
+</div>
+
+<div class="result-popup" id="resultPopup">
+  <div class="result-icon" id="resultIcon">✅</div>
+  <div class="result-title" id="resultTitle">任务成功</div>
+  <div class="result-desc" id="resultDesc"></div>
+  <button class="result-close" onclick="closeResult()">继续</button>
+</div>
+
+<div class="hidden-chapter" id="hiddenChapter">
+  <div class="hidden-chapter-inner">
+    <div class="hidden-tag">隐藏篇章</div>
+    <h2>《古香道上的交通员名录》</h2>
+    <p class="hidden-unlock">解锁条件：获得「古道交通员」徽章</p>
+    <div class="hidden-body" id="hiddenChapterBody"></div>
+    <button class="hidden-skip-btn" type="button" onclick="skipHiddenChapter()">跳过朗读</button>
+  </div>
+</div>
+
+<script src="assets/badge-reveal.js"></script>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+const BADGE_KEY = 'guxiangdao_badges_v1';
+const PATH_Y = 0.14;
+const MODEL_FILES = {
+  handcart: 'models/handcar.glb',
+  checkpoint: 'models/guxiangdao/guanqia.glb',
+  soldier1: 'models/guxiangdao/shibing1.glb',
+  soldier2: 'models/guxiangdao/shibing2.glb',
+  bethune: 'models/guxiangdao/beixiye.glb',
+};
+
+function returnToCheckin() {
+  const params = new URLSearchParams(window.location.search);
+  const spotId = params.get('spot') || '';
+  try {
+    if (window.parent && window.parent !== window) {
+      window.parent.postMessage({ type: 'jiankou-scene-complete', spotId: spotId }, '*');
+      return;
+    }
+  } catch (e) {}
+  try { sessionStorage.setItem('jiankouCompletedSpot', spotId); } catch (e) {}
+  window.location.href = new URL('../index.html', window.location.href).href;
+}
+
+// 茶棚关卡（guanqia.glb）— 保留 Meshy 原始贴图与材质
+
+const INTRO_NARRATION =
+  '妙峰山古香道是明清至民国时期民众朝拜妙峰山娘娘庙的主要路径，庙会始于明代，已有 400 余年历史，2008 年被列入第二批国家级非物质文化遗产名录。' +
+  '现存四条主线路 —— 南道、中道、中北道、老北道，其中中北道全长约 40 华里（20 公里），是慈禧太后当年进香所走的主道。' +
+  '据传该道由清光绪年间大太监刘诚印出资用石板铺砌，因造价昂贵 ——"每铺石一块就得用白银一两"—— 而被称为 "金阶"。' +
+  '清末民国初期，庙会期间日进山香客达万人之多。1925 年，著名民俗学者顾颉刚以妙峰山古香道为基地，开创了中国近代民俗学野外调查的先河，留下了《妙峰山香会调查报告》等学术专著。' +
+  '抗战爆发后，这条古道因位置偏僻、山林掩蔽，被八路军开辟为秘密交通线，承担传递情报、运送物资、护送人员前往根据地的重任。' +
+  '法国医生贝熙业曾用自行车沿此路将药品秘密运往根据地，经海淀、温泉送到北安河附近的青纱帐，再由平西站交通员张冲等人取走，因此这条路又被后人称为自行车上的 "驼峰航线"。';
+
+let introFinishCallback = null;
+let pendingShowHiddenChapter = false;
+let hiddenTypeToken = 0;
+let hiddenTypeTimer = null;
+let activeNarrationAudio = null;
+const narrationMp3Cache = {};
+let dialogueBubbleTimer = null;
+let dialogueBubblePollId = null;
+let actors = {};
+let activeBubble = null;
+const _proj = new THREE.Vector3();
+
+const NARRATION_MP3 = {
+  intro:  'audio/guxiangdao/intro.mp3',
+  scene1: 'audio/guxiangdao/scene1.mp3',
+  scene2: 'audio/guxiangdao/scene2.mp3',
+  // 场景三无新录音，走原浏览器配音
+};
+
+function stopNarrationAudio() {
+  if (activeNarrationAudio) {
+    activeNarrationAudio.pause();
+    activeNarrationAudio.currentTime = 0;
+    activeNarrationAudio = null;
+  }
+}
+
+function clearDialogueBubbleTimer() {
+  if (dialogueBubbleTimer) {
+    clearTimeout(dialogueBubbleTimer);
+    dialogueBubbleTimer = null;
+  }
+  if (dialogueBubblePollId) {
+    clearInterval(dialogueBubblePollId);
+    dialogueBubblePollId = null;
+  }
+}
+
+function registerActor(key, cfg) {
+  actors[key] = { x: cfg.x, z: cfg.z, headY: cfg.headY || 1.6 };
+}
+
+function showSpeechBubble(key, name, text) {
+  hideSpeechBubble();
+  const layer = document.getElementById('bubble-layer');
+  if (!layer || !actors[key]) return;
+  const el = document.createElement('div');
+  el.className = 'speech-bubble show';
+  const line = (text || '').replace(/[<>&]/g, (ch) => ({ '<':'&lt;', '>':'&gt;', '&':'&amp;' }[ch]));
+  el.innerHTML = '<div class="speaker-name">' + (name || '') + '</div><div class="bubble-text">' + line + '</div>';
+  layer.appendChild(el);
+  activeBubble = { el, key };
+  updateBubblePosition();
+}
+
+function hideSpeechBubble() {
+  if (activeBubble) { activeBubble.el.remove(); activeBubble = null; }
+}
+
+function revealDialogueThenChoices(dialogue, openChoices) {
+  if (dialogue && dialogue.speaker && actors[dialogue.speaker]) {
+    showSpeechBubble(dialogue.speaker, dialogue.name, dialogue.text);
+    document.getElementById('miniDialogue').textContent = dialogue.name + '：「' + dialogue.text + '」';
+    setTimeout(() => { if (openChoices) openChoices(); }, 1800);
+  } else if (openChoices) {
+    openChoices();
+  }
+}
+
+function updateBubblePosition() {
+  if (!activeBubble || !actors[activeBubble.key] || !camera) return;
+  const a = actors[activeBubble.key];
+  _proj.set(a.x, a.headY, a.z);
+  _proj.project(camera);
+  const x = (_proj.x * 0.5 + 0.5) * window.innerWidth;
+  const y = (-_proj.y * 0.5 + 0.5) * window.innerHeight - 12;
+  activeBubble.el.style.left = x + 'px';
+  activeBubble.el.style.top = y + 'px';
+}
+
+function scheduleInAudioDialogueBubble(dialogue, dialogueAt) {
+  clearDialogueBubbleTimer();
+  if (!dialogue || !dialogue.speaker) return;
+  const key = dialogue.speaker;
+  let shown = false;
+  const show = () => {
+    if (shown) return;
+    shown = true;
+    clearDialogueBubbleTimer();
+    if (activeNarrationAudio) activeNarrationAudio.removeEventListener('timeupdate', onTime);
+    if (!actors[key]) return;
+    showSpeechBubble(key, dialogue.name, dialogue.text);
+    document.getElementById('miniDialogue').textContent = dialogue.name + '：「' + dialogue.text + '」';
+  };
+  const onTime = () => {
+    const audio = activeNarrationAudio;
+    if (audio && audio.currentTime >= dialogueAt) show();
+  };
+  const audio = activeNarrationAudio;
+  const arm = () => {
+    const at = typeof dialogueAt === 'number' ? dialogueAt : NaN;
+    if (!isFinite(at) || at < 0) {
+      const dur = audio && isFinite(audio.duration) ? audio.duration : 0;
+      dialogueBubbleTimer = setTimeout(show, dur > 0 ? Math.max(400, dur * 1000 * 0.45) : 5000);
+      return;
+    }
+    audio.addEventListener('timeupdate', onTime);
+    dialogueBubblePollId = setInterval(() => {
+      const a = activeNarrationAudio;
+      if (a && a.currentTime >= at) show();
+    }, 30);
+  };
+  if (audio) {
+    if (isFinite(audio.duration) && audio.duration > 0) arm();
+    else audio.addEventListener('loadedmetadata', arm, { once: true });
+  }
+}
+
+function playDocAudio(key, textFallback, onEnd) {
+  if (!audioOn) { if (onEnd) onEnd(); return; }
+  const src = NARRATION_MP3[key];
+  if (!src) {
+    tts(textFallback, onEnd);
+    return;
+  }
+  speechSynthesis.cancel();
+  stopNarrationAudio();
+  let audio = narrationMp3Cache[key];
+  if (!audio) {
+    audio = new Audio(src);
+    audio.preload = 'auto';
+    narrationMp3Cache[key] = audio;
+  } else {
+    audio.pause();
+    audio.currentTime = 0;
+  }
+  activeNarrationAudio = audio;
+  const cleanup = () => {
+    audio.removeEventListener('ended', onDone);
+    audio.removeEventListener('error', onFail);
+  };
+  const onDone = () => {
+    cleanup();
+    if (activeNarrationAudio === audio) activeNarrationAudio = null;
+    if (onEnd) onEnd();
+  };
+  const onFail = () => {
+    cleanup();
+    if (activeNarrationAudio === audio) activeNarrationAudio = null;
+    tts(textFallback, onEnd);
+  };
+  audio.addEventListener('ended', onDone);
+  audio.addEventListener('error', onFail);
+  audio.play().catch(onFail);
+}
+
+const HIDDEN_CHAPTER_SEGMENTS = [
+  { tag: 'p', text: '妙峰山古香道在抗战时期被开辟为秘密交通线，穿梭南北的交通员中，有国际友人、有中共地下党员、有普通老百姓…… 是他们用脚步构筑了一条地下长城。' },
+  { tag: 'h4', text: '贝熙业 —— 自行车上的 "驼峰航线"' },
+  { tag: 'p', text: '法国医生贝熙业在中法建交 50 周年纪念大会上，被习主席专门提到 —— 他冒着生命危险开辟了一条自行车 "驼峰航线"，把宝贵药品运往中国抗日根据地。' },
+  { tag: 'p', text: '贝熙业在北京行医多年，与北平地下组织黄浩情报组密切联系，利用法国人和医生的双重身份，把药品和医疗设备送出封锁线，带回西山交给平西根据地的地下交通员。"贝家花园" 的管家王月川恰好也是地下党的秘密交通员。' },
+  { tag: 'p', text: '太平洋战争爆发后，石油成为紧缺战略物资，年近古稀的贝熙业开始骑自行车运送药品。他从东城区大甜水井胡同出发，经西直门出城，过海淀、颐和园、百望山、温泉村，到达贝家花园，再转交地下交通员护送到根据地。' },
+  { tag: 'h4', text: '肖田 —— 燕京大学机器房的地下交通站' },
+  { tag: 'p', text: '肖田（又名肖再田）1926 年到燕京大学机器房工作，1931 年加入中国共产党，长期以校内供电、供水、供暖和设备维修为掩护，与林迈可等外籍教员建立联系。' },
+  { tag: 'p', text: '肖田以机器房为据点，秘密为抗日根据地筹集物资。他利用林迈可从国外弄到的电讯器材零件，在林迈可宿舍组装电台，并化装成商人混过日军卡哨，进入妙峰山与平西根据地取得联系，建立起燕京大学交通站。' },
+  { tag: 'p', text: '1938 年秋至 1942 年春，肖田组织的交通员以粪车为掩护，先后将 5 部发报机、3 箱大型空气电池、大批药品、1 台内燃发电机、一批照相、测量、绘图器材和大量电线、汽油、机油等物资送到了根据地。' },
+  { tag: 'h4', text: '肖芳 —— 将电台化整为零送延安' },
+  { tag: 'p', text: '肖田之弟，燕京大学物理系学生，1938 年参加革命，1939 年入党。1939 年底，他负责将 5 部电台由北平转移至平西根据地最终运往延安。电台体积大数量多过于显眼，肖芳利用专业知识将电台拆卸化整为零，由交通员分段运送，数月后全部抵达延安。' },
+  { tag: 'p', text: '1941 年 12 月，林迈可逃离燕京大学后，正是肖芳受肖克司令员派遣前来接应，带领他们绕过妙峰山日军据点，穿越古香道抵达平西抗日根据地。' },
+];
+
+const HIDDEN_CHAPTER_TTS =
+  '隐藏篇章，《古香道上的交通员名录》。妙峰山古香道在抗战时期被开辟为秘密交通线，穿梭南北的交通员中，有国际友人、有中共地下党员、有普通老百姓…… 是他们用脚步构筑了一条地下长城。' +
+  '贝熙业，自行车上的驼峰航线。法国医生贝熙业在中法建交 50 周年纪念大会上，被习主席专门提到，他冒着生命危险开辟了一条自行车驼峰航线，把宝贵药品运往中国抗日根据地。' +
+  '贝熙业在北京行医多年，与北平地下组织黄浩情报组密切联系，利用法国人和医生的双重身份，把药品和医疗设备送出封锁线，带回西山交给平西根据地的地下交通员。贝家花园的管家王月川恰好也是地下党的秘密交通员。' +
+  '太平洋战争爆发后，石油成为紧缺战略物资，年近古稀的贝熙业开始骑自行车运送药品。他从东城区大甜水井胡同出发，经西直门出城，过海淀、颐和园、百望山、温泉村，到达贝家花园，再转交地下交通员护送到根据地。' +
+  '肖田，燕京大学机器房的地下交通站。肖田，又名肖再田，1926 年到燕京大学机器房工作，1931 年加入中国共产党，长期以校内供电、供水、供暖和设备维修为掩护，与林迈可等外籍教员建立联系。' +
+  '肖田以机器房为据点，秘密为抗日根据地筹集物资。他利用林迈可从国外弄到的电讯器材零件，在林迈可宿舍组装电台，并化装成商人混过日军卡哨，进入妙峰山与平西根据地取得联系，建立起燕京大学交通站。' +
+  '1938 年秋至 1942 年春，肖田组织的交通员以粪车为掩护，先后将 5 部发报机、3 箱大型空气电池、大批药品、1 台内燃发电机、一批照相、测量、绘图器材和大量电线、汽油、机油等物资送到了根据地。' +
+  '肖芳，将电台化整为零送延安。肖田之弟，燕京大学物理系学生，1938 年参加革命，1939 年入党。1939 年底，他负责将 5 部电台由北平转移至平西根据地最终运往延安。电台体积大数量多过于显眼，肖芳利用专业知识将电台拆卸化整为零，由交通员分段运送，数月后全部抵达延安。' +
+  '1941 年 12 月，林迈可逃离燕京大学后，正是肖芳受肖克司令员派遣前来接应，带领他们绕过妙峰山日军据点，穿越古香道抵达平西抗日根据地。';
+
+const SCENES = {
+  1: {
+    tag: '场景一 · 脚下的路', year: '1942年春', title: '运送药品',
+    narration:
+      '1942 年春，你是一名平西站的交通员，今天的任务是从北安河运送一批药品到涧沟村 —— 盘尼西林和绷带，根据地医院急需。' +
+      '你推着独轮车走在古香道上。脚下的石板路凹凸不平，据说当年慈禧太后走的就是这条路。你低头看了看石板 —— 每一块都铺得整整齐齐。' +
+      '据说，这条路的石板，每铺一块就要花一两白银。',
+    prompt: '走在古香道上，你心里在想什么？',
+    choices: [
+      { label: 'A', text: '心中感叹："一条路，一个王朝的奢靡，和一个时代的苦难。"', success: false,
+        result: '❌ 任务分心。错误解释：当前运送药品任务紧急，根据地伤员等待救治，需集中注意力赶路，分散思绪可能延误行程、增加暴露风险。请重试。' },
+      { label: 'B', text: '无暇多想，只想着尽快把药送到', success: true,
+        result: '✅ 回答正确！你心无旁骛赶路，优先保障药品运送时效，顺利抵达第一个接头节点。进入下一项任务。' },
+      { label: 'C', text: '低声念了一句："这条路，娘娘走过，太后走过，今天轮到我们走了。"', success: false,
+        result: '❌ 任务分心。错误解释：运送任务期间需保持高度警惕，感慨历史会分散注意力，增加遇敌风险。请重试。' },
+    ],
+    camera: { pos: [0.3, 1.35, 7.5], look: [0, 0.9, -6] },
+    handcart: { x: 0, z: 1.5, scale: 2.6, rotY: Math.PI },
+  },
+  2: {
+    tag: '场景二 · 盘查', year: '1942年春', title: '茶棚关卡',
+    narration:
+      '走到半山腰的茶棚附近，你看到前方设了卡 —— 几个伪军正在盘查过往行人。一个挎着步枪的士兵朝你招手："推车的，过来！"' +
+      '你的独轮车底层藏着药品，上层铺着山货和干草。如果不能蒙混过关，药品没收还是小事，身份暴露则是灭顶之灾。',
+    prompt: '伪军正在盘查，你怎么办？',
+    dialogue: { speaker: 'soldier', name: '伪军', text: '推车的，过来！' },
+    dialogueInAudio: true,
+    dialogueAt: 9.56,
+    choices: [
+      { label: 'A', text: '主动迎上去，满脸堆笑："老总，我就是个卖山货的，您看看？"', success: true,
+        result: '✅ 回答正确！你主动配合、镇定应对，伪军翻找后未发现夹层中的药品，顺利通过关卡，按时继续赶路。进入下一项任务。',
+        speech: '老总，我就是个卖山货的，您看看？' },
+      { label: 'B', text: '绕道走小路，躲避检查', success: false,
+        result: '❌ 任务延误。错误解释：绕行小路虽能避开盘查，但会多走十余里山路，错过接头时间，延误药品送达的最佳时机。请重试。' },
+      { label: 'C', text: '装作没听见，加速向前冲', success: false,
+        result: '❌ 任务失败。错误解释：加速逃窜会直接引起伪军注意，被截查后药品彻底暴露，任务完全失败。请重试。' },
+    ],
+    camera: { pos: [0, 1.6, 8], look: [0, 1.1, -14] },
+    handcart: { x: -0.4, z: 3, scale: 2.6, rotY: Math.PI * 0.92 },
+  },
+  3: {
+    tag: '场景三 · 贝熙业的自行车', year: '1942年', title: '自行车上的驼峰航线',
+    narration:
+      '你听说，有个法国医生叫贝熙业，经常用自行车驮着药品从城里往根据地送。他走的也是这条古香道，被叫作 "自行车上的驼峰航线"。' +
+      '一个有身份的外国人，为什么愿意冒这么大的风险？',
+    prompt: '贝熙业为什么甘愿冒险？',
+    choices: [
+      { label: 'A', text: '"因为他相信正义。"', success: false,
+        result: '❌ 理解不够全面。错误解释：正义是信念支撑，但贝熙业先生选择持续冒险的核心动因，是他亲眼见证了日军的暴行与根据地的真实困境。请重试。' },
+      { label: 'B', text: '"因为他看到了真相。"', success: true,
+        result: '✅ 回答正确！贝熙业在华多年，亲眼目睹了日军的侵略暴行与抗日根据地的艰难处境，因此甘愿冒生命危险开辟自行车药品运输线。\n🎉 恭喜完成古香道全部运送任务，解锁专属徽章：古道交通员',
+        badge: '古道交通员', final: true },
+      { label: 'C', text: '"因为他也是人。"', success: false,
+        result: '❌ 理解过于片面。错误解释：朴素的人性共情是基础，但支撑他多次穿越封锁线的核心，是对侵略真相的认知与对正义的认同。请重试。' },
+    ],
+    camera: { pos: [1.8, 2.1, 10], look: [0, 1.0, -18] },
+  },
+};
+
+let renderer, scene3d, camera, gltfLoader, handcartLoader;
+let sceneObjects = [];
+let currentScene = 1;
+let sceneReady = false;
+let sceneBuilding = false;
+let sceneLoadId = 0;
+let handcartRef = null;
+const modelCache = {};
+let audioOn = true;
+let audioCtx = null;
+let pendingNext = null;
+let pendingRetry = false;
+let autoTimer = null;
+let animTick = 0;
+
+function getScene() { return SCENES[currentScene]; }
+
+function setSceneLoading(on, msg) {
+  const el = document.getElementById('sceneLoading');
+  const title = document.getElementById('loadTitle');
+  const prog = document.getElementById('loadProgress');
+  if (msg && title) title.textContent = msg;
+  if (prog && !on) prog.textContent = '';
+  el.classList.toggle('show', on);
+}
+
+function setLoadProgress(text) {
+  const prog = document.getElementById('loadProgress');
+  if (prog) prog.textContent = text || '';
+}
+
+function showProtocolWarning(show) {
+  document.getElementById('protocolWarn').classList.toggle('show', show);
+}
+
+function updateUI() {
+  const s = getScene();
+  document.getElementById('topTag').textContent = '🛤️ ' + s.tag;
+  document.getElementById('miniYear').textContent = s.year;
+  document.getElementById('miniTitle').textContent = s.title;
+  document.querySelectorAll('.scene-nav button').forEach(btn => {
+    btn.classList.toggle('active', parseInt(btn.dataset.scene, 10) === currentScene);
+  });
+}
+
+function purgeHandcart() {
+  if (handcartRef) {
+    disposeObject(handcartRef);
+    scene3d.remove(handcartRef);
+    const idx = sceneObjects.indexOf(handcartRef);
+    if (idx >= 0) sceneObjects.splice(idx, 1);
+    handcartRef = null;
+  }
+  for (let i = sceneObjects.length - 1; i >= 0; i--) {
+    const o = sceneObjects[i];
+    if (o.userData && o.userData.propType === 'handcart') {
+      disposeObject(o);
+      scene3d.remove(o);
+      sceneObjects.splice(i, 1);
+    }
+  }
+}
+
+function add(obj) {
+  if (currentScene === 3 && obj.userData && obj.userData.propType === 'handcart') {
+    disposeObject(obj);
+    return;
+  }
+  scene3d.add(obj);
+  sceneObjects.push(obj);
+}
+
+function disposeObject(obj) {
+  if (!obj) return;
+  if (obj.dispose) obj.dispose();
+  else if (obj.traverse) {
+    obj.traverse((c) => {
+      if (c.geometry) c.geometry.dispose();
+      if (c.material) {
+        if (Array.isArray(c.material)) c.material.forEach(m => m.dispose());
+        else c.material.dispose();
+      }
+    });
+  }
+}
+
+function clearScene() {
+  purgeHandcart();
+  sceneObjects.forEach(o => disposeObject(o));
+  sceneObjects.length = 0;
+  for (const k in actors) delete actors[k];
+  hideSpeechBubble();
+  clearDialogueBubbleTimer();
+}
+
+function buildSky() {
+  add(new THREE.Mesh(new THREE.SphereGeometry(400, 32, 32), new THREE.ShaderMaterial({
+    side: THREE.BackSide,
+    uniforms: {
+      topColor: { value: new THREE.Color(0x5a8aaa) },
+      bottomColor: { value: new THREE.Color(0xc8b888) },
+      offset: { value: 0.35 }, exponent: { value: 0.55 }
+    },
+    vertexShader: 'varying vec3 vP;void main(){vec4 w=modelMatrix*vec4(position,1.0);vP=w.xyz;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
+    fragmentShader: 'uniform vec3 topColor,bottomColor;uniform float offset,exponent;varying vec3 vP;void main(){float h=normalize(vP+offset).y;gl_FragColor=vec4(mix(bottomColor,topColor,max(pow(max(h,0.0),exponent),0.0)),1.0);}'
+  })));
+}
+
+function buildMountains() {
+  const g = new THREE.Group();
+  const layers = [
+    { n: 10, z: -42, spread: 180, hMin: 10, hMax: 22, color: 0x5a6a52 },
+    { n: 12, z: -58, spread: 220, hMin: 16, hMax: 32, color: 0x4a5a48 },
+    { n: 14, z: -78, spread: 260, hMin: 22, hMax: 42, color: 0x3a4a42 },
+  ];
+  layers.forEach((layer) => {
+    for (let i = 0; i < layer.n; i++) {
+      const h = layer.hMin + Math.random() * (layer.hMax - layer.hMin);
+      const w = h * (1.1 + Math.random() * 0.7);
+      const m = new THREE.Mesh(
+        new THREE.ConeGeometry(w, h, 6),
+        new THREE.MeshStandardMaterial({ color: layer.color, roughness: 1, fog: true }),
+      );
+      m.position.set(
+        (i - layer.n / 2) * (layer.spread / layer.n) + (Math.random() - 0.5) * 12,
+        h * 0.28 - 1,
+        layer.z + (Math.random() - 0.5) * 14,
+      );
+      g.add(m);
+    }
+  });
+  add(g);
+}
+
+function buildPathsideEarth(pathLen, pathHalfW) {
+  const g = new THREE.Group();
+  const earthMat = new THREE.MeshStandardMaterial({ color: 0x6a5a42, roughness: 1 });
+  const dirtMat = new THREE.MeshStandardMaterial({ color: 0x5a4a35, roughness: 1 });
+  const grassMat = new THREE.MeshStandardMaterial({ color: 0x4a6a38, roughness: 1 });
+  const mats = [earthMat, dirtMat, grassMat];
+  const centerZ = -pathLen / 2 + 5;
+
+  [-1, 1].forEach((side) => {
+    const flankW = 9;
+    const strip = new THREE.Mesh(new THREE.PlaneGeometry(flankW, pathLen + 8), earthMat);
+    strip.rotation.x = -Math.PI / 2;
+    strip.position.set(side * (pathHalfW + flankW * 0.48), 0.03, centerZ);
+    strip.receiveShadow = true;
+    g.add(strip);
+
+    for (let z = 0; z < pathLen; z += 2) {
+      if (Math.random() > 0.55) continue;
+      const patch = new THREE.Mesh(
+        new THREE.BoxGeometry(1.2 + Math.random() * 2.5, 0.06 + Math.random() * 0.1, 1.2 + Math.random() * 2.2),
+        mats[Math.floor(Math.random() * mats.length)],
+      );
+      patch.position.set(
+        side * (pathHalfW + 1.8 + Math.random() * (flankW - 2)),
+        0.05,
+        -z * 0.92 + 6 + (Math.random() - 0.5) * 0.6,
+      );
+      g.add(patch);
+    }
+  });
+  add(g);
+}
+
+function buildAncientPath() {
+  const group = new THREE.Group();
+  const stoneMat = new THREE.MeshStandardMaterial({ color: 0x8a8a7a, roughness: 0.92 });
+  const darkMat = new THREE.MeshStandardMaterial({ color: 0x5a5a4a, roughness: 0.95 });
+  const mossMat = new THREE.MeshStandardMaterial({ color: 0x5a6a3a, roughness: 1 });
+  const PATH_LEN = 55;
+  const base = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.1, PATH_LEN), darkMat);
+  base.position.set(0, 0.05, -PATH_LEN / 2 + 5);
+  base.receiveShadow = true;
+  group.add(base);
+  for (let z = 0; z < PATH_LEN; z++) {
+    for (let x = -1; x <= 1; x++) {
+      const stone = new THREE.Mesh(
+        new THREE.BoxGeometry(0.9 + Math.random() * 0.15, 0.05 + Math.random() * 0.03, 0.6 + Math.random() * 0.1),
+        Math.random() > 0.65 ? mossMat : stoneMat
+      );
+      stone.position.set(x * 0.95 + (Math.random() - 0.5) * 0.1, 0.1, -z * 0.92 + 6);
+      stone.rotation.y = (Math.random() - 0.5) * 0.06;
+      stone.castShadow = true;
+      stone.receiveShadow = true;
+      group.add(stone);
+    }
+  }
+  add(group);
+  buildPathsideEarth(PATH_LEN, 1.75);
+}
+
+function buildRoadsideTrees(opts = {}) {
+  const g = new THREE.Group();
+  const trunkMat = new THREE.MeshStandardMaterial({ color: 0x3a2510, roughness: 0.95 });
+  const greens = [0x1a5c1a, 0x267326, 0x32a032, 0x3dbd3d];
+  const exclude = opts.exclude;
+  for (let z = 2; z < 50; z += 3) {
+    for (const side of [-1, 1]) {
+      if (Math.random() > 0.3) continue;
+      const tx = side * (4 + Math.random() * 1.5);
+      const tz = -z * 0.92 + 6;
+      if (exclude) {
+        if (Math.abs(tx - exclude.x) < exclude.radiusX && Math.abs(tz - exclude.z) < exclude.radiusZ) continue;
+      }
+      const tree = new THREE.Group();
+      const h = 4 + Math.random() * 5;
+      const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.22, h, 8), trunkMat);
+      trunk.position.y = h / 2;
+      tree.add(trunk);
+      const crown = new THREE.Mesh(
+        new THREE.SphereGeometry(1.2 + Math.random() * 0.8, 8, 8),
+        new THREE.MeshStandardMaterial({ color: greens[Math.floor(Math.random() * greens.length)], roughness: 0.85 })
+      );
+      crown.position.y = h + 0.8;
+      crown.scale.set(1, 1.3, 1);
+      tree.add(crown);
+      tree.position.set(tx, 0, tz);
+      g.add(tree);
+    }
+  }
+  add(g);
+}
+
+function buildSoldier(x, z, rotY) {
+  const man = new THREE.Group();
+  const uniform = new THREE.MeshStandardMaterial({ color: 0x6a5a4a, roughness: 0.9 });
+  const skin = new THREE.MeshStandardMaterial({ color: 0xd8b898, roughness: 0.85 });
+  const torso = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.55, 0.2), uniform);
+  torso.position.y = 1.1;
+  man.add(torso);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.14, 10, 10), skin);
+  head.position.y = 1.52;
+  man.add(head);
+  const rifle = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.9), new THREE.MeshStandardMaterial({ color: 0x2a2a2a }));
+  rifle.position.set(0.15, 1.0, -0.2);
+  rifle.rotation.x = -0.3;
+  man.add(rifle);
+  man.position.set(x, PATH_Y, z);
+  man.rotation.y = rotY;
+  add(man);
+}
+
+function buildCheckpoint() {
+  const g = new THREE.Group();
+  const wood = new THREE.MeshStandardMaterial({ color: 0x6a4a2a, roughness: 0.95 });
+  const roof = new THREE.MeshStandardMaterial({ color: 0x4a3a2a, roughness: 0.9 });
+  const shed = new THREE.Mesh(new THREE.BoxGeometry(3.5, 2.2, 2.8), wood);
+  shed.position.set(0, 1.1, -13);
+  g.add(shed);
+  const roofMesh = new THREE.Mesh(new THREE.BoxGeometry(4.2, 0.25, 3.4), roof);
+  roofMesh.position.set(0, 2.35, -13);
+  g.add(roofMesh);
+  const sign = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.6, 0.12), new THREE.MeshStandardMaterial({ color: 0x8a3030 }));
+  sign.position.set(0, 1.6, -11.4);
+  g.add(sign);
+  [[-1.6, -11], [1.6, -11]].forEach(([x, z]) => {
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 1.4, 8), wood);
+    post.position.set(x, 0.7, z);
+    g.add(post);
+  });
+  add(g);
+  buildSoldier(-1.2, -10.5, 0.4);
+  buildSoldier(0.6, -11.2, -2.6);
+  buildSoldier(1.5, -10.8, -1.8);
+  registerActor('soldier', { x: 0.6, z: -11.2, headY: 1.65 });
+}
+
+function buildBicycle(x, z) {
+  const bike = new THREE.Group();
+  const metal = new THREE.MeshStandardMaterial({ color: 0x3a3a3a, metalness: 0.4, roughness: 0.6 });
+  const frame = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.5, 0.9), metal);
+  frame.position.y = 0.55;
+  bike.add(frame);
+  [[-0.28, 0.22], [0.28, 0.22]].forEach(([ox, oz]) => {
+    const wheel = new THREE.Mesh(new THREE.TorusGeometry(0.28, 0.03, 8, 20), metal);
+    wheel.rotation.y = Math.PI / 2;
+    wheel.position.set(ox, 0.28, oz);
+    bike.add(wheel);
+  });
+  const bag = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.25, 0.2), new THREE.MeshStandardMaterial({ color: 0x8a6a3a }));
+  bag.position.set(0, 0.75, -0.15);
+  bike.add(bag);
+  bike.position.set(x, PATH_Y, z);
+  bike.rotation.y = -0.5;
+  add(bike);
+}
+
+function applySceneCamera(n) {
+  const s = SCENES[n];
+  camera.up.set(0, 1, 0);
+  const cam = s.camera;
+  camera.fov = n === 3 ? 50 : 48;
+  camera.near = 0.05;
+  camera.far = 200;
+  camera.updateProjectionMatrix();
+  camera.position.set(cam.pos[0], cam.pos[1], cam.pos[2]);
+  camera.lookAt(cam.look[0], cam.look[1], cam.look[2]);
+}
+
+function getCheckpointCfg() {
+  return { x: 0, z: -11.5, scale: 6.5, rotY: 0, groundY: PATH_Y };
+}
+
+function preloadModels() {
+  const list = [
+    ['soldier1', MODEL_FILES.soldier1],
+    ['soldier2', MODEL_FILES.soldier2],
+    ['checkpoint', MODEL_FILES.checkpoint],
+    ['bethune', MODEL_FILES.bethune],
+    ['handcart', MODEL_FILES.handcart],
+  ];
+  list.forEach(([key, url]) => {
+    gltfLoader.load(url, (gltf) => {
+      modelCache[key] = gltf;
+      console.log('📦 预加载完成', key);
+    }, undefined, (err) => console.warn('预加载失败', key, err));
+  });
+}
+
+function purgeSoldiers() {
+  for (let i = sceneObjects.length - 1; i >= 0; i--) {
+    const o = sceneObjects[i];
+    if (o.userData && o.userData.propType === 'soldier') {
+      disposeObject(o);
+      scene3d.remove(o);
+      sceneObjects.splice(i, 1);
+    }
+  }
+}
+
+function placeGlbInstance(gltf, cfg, forScene, expectedLoadId, propType) {
+  if (currentScene !== forScene || sceneLoadId !== expectedLoadId) return false;
+  const wrap = new THREE.Group();
+  if (propType) wrap.userData.propType = propType;
+  const m = gltf.scene.clone(true);
+  m.rotation.y = cfg.rotY || 0;
+  const s = cfg.scale || 1;
+  m.scale.set(s, s, s);
+  wrap.add(m);
+  wrap.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(wrap);
+  const groundY = cfg.groundY != null ? cfg.groundY : PATH_Y;
+  wrap.position.set(cfg.x, groundY - box.min.y, cfg.z);
+  m.traverse((child) => {
+    if (!child.isMesh) return;
+    child.castShadow = true;
+    child.receiveShadow = true;
+    if (cfg.renderOrder) child.renderOrder = cfg.renderOrder;
+  });
+  add(wrap);
+  return true;
+}
+
+function loadGlbProp(url, cfg, label, forScene, opts = {}) {
+  const expectedScene = forScene;
+  const expectedLoadId = sceneLoadId;
+  const { cacheKey, propType } = opts;
+
+  const finish = (gltf) => {
+    if (placeGlbInstance(gltf, cfg, expectedScene, expectedLoadId, propType)) {
+      console.log('✅', label, '已加载 [场景' + expectedScene + ']');
+    }
+  };
+
+  if (cacheKey && modelCache[cacheKey]) {
+    finish(modelCache[cacheKey]);
+    return;
+  }
+
+  gltfLoader.load(url, (gltf) => {
+    if (cacheKey) modelCache[cacheKey] = gltf;
+    if (currentScene !== expectedScene || sceneLoadId !== expectedLoadId) {
+      console.log('⏭️ 跳过过期模型', label);
+      return;
+    }
+    finish(gltf);
+  }, undefined, (err) => console.error('❌', label, '加载失败', err));
+}
+
+function loadCheckpoint(forScene) {
+  const cfg = getCheckpointCfg();
+  loadGlbProp(MODEL_FILES.checkpoint, { ...cfg, renderOrder: 2 }, '关卡模型', forScene, { cacheKey: 'checkpoint' });
+}
+
+function loadSoldiers(forScene) {
+  purgeSoldiers();
+  const groundY = getCheckpointCfg().groundY;
+  loadGlbProp(MODEL_FILES.soldier1, {
+    x: 2.1, z: -4.2, scale: 1.2, rotY: 0, groundY, renderOrder: 3,
+  }, '伪军1（握枪）', forScene, { cacheKey: 'soldier1', propType: 'soldier' });
+  loadGlbProp(MODEL_FILES.soldier2, {
+    x: -2.1, z: -4.8, scale: 1.2, rotY: 0, groundY, renderOrder: 3,
+  }, '伪军2（站岗）', forScene, { cacheKey: 'soldier2', propType: 'soldier' });
+}
+
+function ensureSoldiersLoaded() {
+  if (currentScene !== 2) return;
+  const n = sceneObjects.filter(o => o.userData && o.userData.propType === 'soldier').length;
+  if (n < 2) loadSoldiers(2);
+}
+
+function loadBethune(forScene) {
+  loadGlbProp(MODEL_FILES.bethune, {
+    x: 0.4, z: 0.8, scale: 1.15, rotY: Math.PI / 2, groundY: PATH_Y, renderOrder: 3,
+  }, '贝熙业医生', forScene, { cacheKey: 'bethune' });
+}
+
+function buildSceneProps(n) {
+  if (n === 3) {
+    purgeHandcart();
+    loadCheckpoint(3);
+    loadBethune(3);
+    return;
+  }
+
+  if (n === 1 || n === 2) {
+    purgeHandcart();
+    loadHandcart(getHandcartCfg(n), n);
+    if (n === 2) {
+      loadCheckpoint(2);
+      loadSoldiers(2);
+      setTimeout(ensureSoldiersLoaded, 1200);
+      setTimeout(ensureSoldiersLoaded, 3000);
+    }
+  }
+}
+
+function getHandcartCfg(n) {
+  return { ...SCENES[n].handcart };
+}
+
+function placeHandcart(wrap) {
+  purgeHandcart();
+  handcartRef = wrap;
+  wrap.userData.propType = 'handcart';
+  add(wrap);
+}
+
+function buildProceduralHandcart(cfg) {
+  const cart = new THREE.Group();
+  const wood = new THREE.MeshStandardMaterial({ color: 0x7a5a3a, roughness: 0.9 });
+  const wheelMat = new THREE.MeshStandardMaterial({ color: 0x3a2a1a, roughness: 0.85 });
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.35, 1.1), wood);
+  body.position.y = 0.55;
+  cart.add(body);
+  const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.08, 16), wheelMat);
+  wheel.rotation.z = Math.PI / 2;
+  wheel.position.set(0, 0.32, 0.35);
+  cart.add(wheel);
+  const handle = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.7), wood);
+  handle.position.set(0, 0.7, 0.75);
+  handle.rotation.x = -0.35;
+  cart.add(handle);
+  cart.rotation.y = cfg.rotY || 0;
+  cart.scale.setScalar(cfg.scale || 2);
+  const groundY = cfg.groundY != null ? cfg.groundY : PATH_Y;
+  cart.position.set(cfg.x, groundY, cfg.z);
+  placeHandcart(cart);
+}
+
+function loadHandcart(cfg, forScene) {
+  if (forScene !== 1 && forScene !== 2) return;
+  if (currentScene !== forScene) return;
+
+  const expectedScene = forScene;
+  const expectedLoadId = sceneLoadId;
+  const groundY = cfg.groundY != null ? cfg.groundY : PATH_Y;
+
+  handcartLoader.load(MODEL_FILES.handcart, (gltf) => {
+    if (currentScene !== expectedScene || sceneLoadId !== expectedLoadId) return;
+
+    const wrap = new THREE.Group();
+    const m = gltf.scene;
+    m.rotation.y = cfg.rotY || 0;
+    m.scale.set(cfg.scale, cfg.scale, cfg.scale);
+    wrap.add(m);
+    wrap.updateMatrixWorld(true);
+    const box = new THREE.Box3().setFromObject(wrap);
+    wrap.position.set(cfg.x, groundY - box.min.y, cfg.z);
+    m.traverse(c => { if (c.isMesh) { c.castShadow = true; c.receiveShadow = true; } });
+    placeHandcart(wrap);
+    console.log('✅ 独轮车 [场景' + expectedScene + '] 仅一辆');
+  }, undefined, () => {
+    if (currentScene !== expectedScene || sceneLoadId !== expectedLoadId) return;
+    buildProceduralHandcart(cfg);
+  });
+}
+
+function buildOutdoorScene(n, onEnvReady) {
+  buildSky();
+  scene3d.background = new THREE.Color(0x6a8aaa);
+  scene3d.fog = new THREE.Fog(0x8a9a8a, 25, 90);
+  buildMountains();
+  buildAncientPath();
+  if (n === 2 || n === 3) {
+    const cp = getCheckpointCfg();
+    buildRoadsideTrees({ exclude: { x: cp.x, z: cp.z, radiusX: 22, radiusZ: 18 } });
+  } else {
+    buildRoadsideTrees();
+  }
+
+  add(new THREE.AmbientLight(0xffffff, 0.65));
+  const sun = new THREE.DirectionalLight(0xffeedd, 1.0);
+  sun.position.set(6, 14, 10);
+  sun.castShadow = true;
+  add(sun);
+  const fill = new THREE.DirectionalLight(0x99bbdd, 0.4);
+  fill.position.set(-5, 8, 5);
+  add(fill);
+
+  buildSceneProps(n);
+  applySceneCamera(n);
+  if (onEnvReady) onEnvReady();
+}
+
+function buildScene(n, onReady) {
+  if (sceneBuilding) return;
+  sceneBuilding = true;
+  setSceneLoading(true, '加载场景' + n + ' · 古香道…');
+
+  clearScene();
+  cancelIntro();
+  cancelHiddenChapter();
+  sceneLoadId++;
+  currentScene = n;
+  updateUI();
+  buildOutdoorScene(n, () => {
+    sceneBuilding = false;
+    sceneReady = true;
+    setSceneLoading(false);
+    if (onReady) onReady();
+  });
+}
+
+window.switchScene = function(n) {
+  if (sceneBuilding || n === currentScene) return;
+  speechSynthesis.cancel();
+  stopNarrationAudio();
+  hideSpeechBubble();
+  clearDialogueBubbleTimer();
+  document.getElementById('choiceModal').classList.remove('show');
+  document.getElementById('resultPopup').classList.remove('show');
+  document.getElementById('narrationBar').classList.remove('show');
+  pendingNext = null;
+  if (autoTimer) clearTimeout(autoTimer);
+  buildScene(n, () => setTimeout(() => playSceneStart(n), 400));
+};
+
+function loadBadges() {
+  try { return new Set(JSON.parse(localStorage.getItem(BADGE_KEY) || '[]')); }
+  catch (e) { return new Set(); }
+}
+
+function saveBadges(set) {
+  try { localStorage.setItem(BADGE_KEY, JSON.stringify([...set])); } catch (e) {}
+}
+
+function awardBadge(name) {
+  if (!name) return;
+  const badges = loadBadges();
+  badges.add(name);
+  saveBadges(badges);
+}
+
+function initAudio() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+}
+
+window.toggleAudio = function() {
+  audioOn = !audioOn;
+  document.getElementById('audioBtn').textContent = audioOn ? '🔊' : '🔇';
+  if (!audioOn) {
+    speechSynthesis.cancel();
+    stopNarrationAudio();
+  } else initAudio();
+};
+
+function synthClick() {
+  if (!audioOn || !audioCtx) return;
+  const o = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  o.frequency.value = 520;
+  g.gain.value = 0.06;
+  g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.08);
+  o.connect(g);
+  g.connect(audioCtx.destination);
+  o.start();
+  o.stop(audioCtx.currentTime + 0.08);
+}
+
+function synthSuccess() {
+  if (!audioOn || !audioCtx) return;
+  [523, 659, 784].forEach((f, i) => {
+    setTimeout(() => {
+      const o = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      o.frequency.value = f;
+      g.gain.value = 0.07;
+      g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.2);
+      o.connect(g);
+      g.connect(audioCtx.destination);
+      o.start();
+      o.stop(audioCtx.currentTime + 0.2);
+    }, i * 120);
+  });
+}
+
+function synthFail() {
+  if (!audioOn || !audioCtx) return;
+  const o = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  o.type = 'sawtooth';
+  o.frequency.value = 180;
+  g.gain.value = 0.05;
+  g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.35);
+  o.connect(g);
+  g.connect(audioCtx.destination);
+  o.start();
+  o.stop(audioCtx.currentTime + 0.35);
+}
+
+function tts(text, onEnd) {
+  if (!audioOn || !text) { if (onEnd) onEnd(); return; }
+  speechSynthesis.cancel();
+  stopNarrationAudio();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = 'zh-CN';
+  u.rate = 0.82;
+  u.pitch = 0.95;
+  u.onend = () => { if (onEnd) onEnd(); };
+  u.onerror = () => { if (onEnd) onEnd(); };
+  speechSynthesis.speak(u);
+}
+
+function showNarration(text) {
+  const bar = document.getElementById('narrationBar');
+  bar.textContent = text;
+  bar.classList.add('show');
+}
+
+function showChoiceModal() {
+  const s = getScene();
+  document.getElementById('choiceTitle').textContent = s.title + ' · 你的选择';
+  document.getElementById('choicePrompt').textContent = s.prompt;
+  const box = document.getElementById('choiceBtns');
+  box.innerHTML = '';
+  s.choices.forEach(c => {
+    const btn = document.createElement('button');
+    btn.className = 'choice-modal-btn';
+    btn.innerHTML = '<span class="opt">' + c.label + '</span>' + c.text;
+    btn.onclick = () => handleChoice(c);
+    box.appendChild(btn);
+  });
+  document.getElementById('choiceModal').classList.add('show');
+}
+
+function hideChoiceModal() {
+  document.getElementById('choiceModal').classList.remove('show');
+}
+
+function getHiddenCharDelay() {
+  const total = HIDDEN_CHAPTER_SEGMENTS.reduce((n, s) => n + s.text.length, 0);
+  const estDurationMs = (total / 3.3) * (1000 / 0.82);
+  return Math.max(45, Math.min(88, Math.floor(estDurationMs / total)));
+}
+
+function startHiddenTypewriter(token) {
+  const body = document.getElementById('hiddenChapterBody');
+  const scrollEl = document.querySelector('.hidden-chapter-inner');
+  body.innerHTML = '';
+  body.classList.add('typing');
+
+  let segIdx = 0;
+  let charIdx = 0;
+  let currentEl = null;
+  const CHAR_MS = getHiddenCharDelay();
+
+  function scrollToEnd() {
+    if (scrollEl) scrollEl.scrollTop = scrollEl.scrollHeight;
+  }
+
+  function step() {
+    if (token !== hiddenTypeToken) return;
+    if (segIdx >= HIDDEN_CHAPTER_SEGMENTS.length) {
+      body.classList.remove('typing');
+      return;
+    }
+    const seg = HIDDEN_CHAPTER_SEGMENTS[segIdx];
+    if (!currentEl) {
+      currentEl = document.createElement(seg.tag);
+      body.appendChild(currentEl);
+    }
+    if (charIdx < seg.text.length) {
+      currentEl.textContent += seg.text[charIdx++];
+      scrollToEnd();
+      hiddenTypeTimer = setTimeout(step, CHAR_MS);
+      return;
+    }
+    segIdx++;
+    charIdx = 0;
+    currentEl = null;
+    hiddenTypeTimer = setTimeout(step, seg.tag === 'h4' ? CHAR_MS * 10 : CHAR_MS * 2);
+  }
+
+  hiddenTypeTimer = setTimeout(step, 400);
+}
+
+function cancelHiddenChapter() {
+  speechSynthesis.cancel();
+  hiddenTypeToken++;
+  if (hiddenTypeTimer) {
+    clearTimeout(hiddenTypeTimer);
+    hiddenTypeTimer = null;
+  }
+  const body = document.getElementById('hiddenChapterBody');
+  if (body) {
+    body.classList.remove('typing');
+    body.innerHTML = '';
+  }
+  document.getElementById('hiddenChapter').classList.remove('show');
+}
+
+function playHiddenChapter() {
+  if (!loadBadges().has('古道交通员')) return;
+  cancelIntro();
+  speechSynthesis.cancel();
+  hiddenTypeToken++;
+  const token = hiddenTypeToken;
+  document.getElementById('hiddenChapter').classList.add('show');
+  document.getElementById('miniDialogue').textContent = '隐藏篇章讲述中…（可跳过）';
+  startHiddenTypewriter(token);
+  tts(HIDDEN_CHAPTER_TTS, function(){
+    if (token !== hiddenTypeToken) return;
+    setTimeout(function(){
+      if (token !== hiddenTypeToken) return;
+      cancelHiddenChapter();
+      returnToCheckin();
+    }, 1200);
+  });
+}
+
+window.skipHiddenChapter = function() {
+  // 立刻停声，马上返回打卡界面
+  hiddenTypeToken++;
+  speechSynthesis.cancel();
+  cancelHiddenChapter();
+  returnToCheckin();
+};
+
+function cancelIntro() {
+  speechSynthesis.cancel();
+  stopNarrationAudio();
+  introFinishCallback = null;
+  document.getElementById('introOverlay').classList.remove('show');
+}
+
+function finishIntro() {
+  if (!introFinishCallback) return;
+  const cb = introFinishCallback;
+  introFinishCallback = null;
+  document.getElementById('introOverlay').classList.remove('show');
+  cb();
+}
+
+function playIntro(onDone) {
+  introFinishCallback = onDone;
+  hideChoiceModal();
+  document.getElementById('narrationBar').classList.remove('show');
+  document.getElementById('introText').textContent = INTRO_NARRATION;
+  document.getElementById('introOverlay').classList.add('show');
+  document.getElementById('miniDialogue').textContent = '古道史话讲述中…（可跳过）';
+  playDocAudio('intro', INTRO_NARRATION, () => finishIntro());
+}
+
+window.skipIntro = function() {
+  speechSynthesis.cancel();
+  stopNarrationAudio();
+  finishIntro();
+};
+
+function playSceneStart(n) {
+  if (n === 1) {
+    playIntro(() => playOpening());
+  } else {
+    cancelIntro();
+    playOpening();
+  }
+}
+
+function playOpening() {
+  const s = getScene();
+  document.getElementById('miniDialogue').textContent = '剧情讲述中…';
+  document.getElementById('narrationBar').classList.remove('show');
+  hideChoiceModal();
+  hideSpeechBubble();
+  clearDialogueBubbleTimer();
+  playDocAudio('scene' + currentScene, s.narration, () => {
+    if (s.dialogue && s.dialogueInAudio && s.dialogue.speaker) {
+      showSpeechBubble(s.dialogue.speaker, s.dialogue.name, s.dialogue.text);
+      document.getElementById('miniDialogue').textContent = s.dialogue.name + '：「' + s.dialogue.text + '」';
+    } else {
+      document.getElementById('miniDialogue').textContent = s.prompt;
+    }
+    showNarration(s.narration);
+    showChoiceModal();
+  });
+  showNarration(s.narration);
+  if (s.dialogue && s.dialogueInAudio) scheduleInAudioDialogueBubble(s.dialogue, s.dialogueAt);
+}
+
+function scheduleAutoAdvance(afterSpeech) {
+  if (autoTimer) clearTimeout(autoTimer);
+  autoTimer = setTimeout(() => {
+    document.getElementById('resultPopup').classList.remove('show');
+    if (pendingNext) {
+      const next = pendingNext;
+      pendingNext = null;
+      buildScene(next, () => setTimeout(() => playSceneStart(next), 400));
+    }
+  }, afterSpeech ? 1600 : 2000);
+}
+
+function scheduleFinalToHidden() {
+  if (autoTimer) clearTimeout(autoTimer);
+  autoTimer = setTimeout(() => {
+    document.getElementById('resultPopup').classList.remove('show');
+    pendingShowHiddenChapter = false;
+    if (loadBadges().has('古道交通员')) {
+      playHiddenChapter();
+    }
+  }, 3200);
+}
+
+function handleChoice(c) {
+  hideChoiceModal();
+  hideSpeechBubble();
+  clearDialogueBubbleTimer();
+  if (autoTimer) clearTimeout(autoTimer);
+  pendingNext = null;
+  pendingShowHiddenChapter = false;
+  synthClick();
+  initAudio();
+
+  const isFinalBadge = c.success && c.final && c.badge === '古道交通员';
+  const p = document.getElementById('resultPopup');
+  p.className = 'result-popup ' + (c.success ? 'success ' : '') + 'show' + (isFinalBadge ? ' badge-together' : '');
+  document.getElementById('resultIcon').textContent = isFinalBadge ? '🏅' : (c.success ? '✅' : '❌');
+  document.getElementById('resultTitle').textContent = isFinalBadge ? '获得徽章' : (c.success ? '回答正确' : '回答错误');
+  document.getElementById('resultDesc').textContent = c.result;
+  if (isFinalBadge) awardBadge(c.badge);
+
+  if (c.success) synthSuccess();
+  else synthFail();
+
+  document.getElementById('narrationBar').classList.remove('show');
+  const btn = document.querySelector('#resultPopup .result-close');
+
+  if (c.success && currentScene < 3) {
+    pendingNext = currentScene + 1;
+    if (btn) btn.textContent = '继续 → 场景' + pendingNext;
+    if (c.speech) {
+      setTimeout(() => {
+        tts(c.speech, () => scheduleAutoAdvance(true));
+      }, 400);
+    } else {
+      scheduleAutoAdvance(false);
+    }
+  } else if (isFinalBadge) {
+    if (btn) btn.textContent = '继续 → 隐藏篇章';
+    pendingShowHiddenChapter = true;
+    if (typeof playBadgeReveal === 'function') playBadgeReveal('古道交通员');
+    scheduleFinalToHidden();
+  } else {
+    pendingRetry = true;
+    if (btn) btn.textContent = '重试';
+  }
+}
+
+window.closeResult = function() {
+  synthClick();
+  document.getElementById('resultPopup').classList.remove('show');
+  const btn = document.querySelector('#resultPopup .result-close');
+  if (btn) btn.textContent = '继续';
+  if (pendingShowHiddenChapter) {
+    pendingShowHiddenChapter = false;
+    if (loadBadges().has('古道交通员')) {
+      playHiddenChapter();
+      return;
+    }
+  }
+  if (pendingNext) {
+    const next = pendingNext;
+    pendingNext = null;
+    buildScene(next, () => setTimeout(() => playSceneStart(next), 400));
+    return;
+  }
+  if (pendingRetry) {
+    pendingRetry = false;
+    setTimeout(() => playSceneStart(currentScene), 300);
+  }
+};
+
+function initThree() {
+  const c = document.getElementById('canvas-container');
+  renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.shadowMap.enabled = false;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 0.85;
+  c.appendChild(renderer.domElement);
+  scene3d = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(54, window.innerWidth / window.innerHeight, 0.1, 500);
+  gltfLoader = new GLTFLoader();
+  handcartLoader = new GLTFLoader();
+  window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+}
+
+function render() {
+  requestAnimationFrame(render);
+  animTick += 0.016;
+  if (currentScene === 3) purgeHandcart();
+  updateBubblePosition();
+  renderer.render(scene3d, camera);
+}
+
+window.addEventListener('load', () => {
+  if (location.protocol === 'file:') showProtocolWarning(true);
+  initThree();
+  preloadModels();
+  render();
+  document.body.addEventListener('click', () => initAudio(), { once: true });
+  const params = new URLSearchParams(location.search);
+  const startScene = parseInt(params.get('scene'), 10);
+  const first = (startScene >= 1 && startScene <= 3) ? startScene : 1;
+  buildScene(first, () => setTimeout(() => playSceneStart(first), 500));
+});
+</script>
+</body>
+</html>
