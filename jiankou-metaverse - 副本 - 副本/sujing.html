@@ -1,0 +1,1411 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>苏静洞 · 山洞里的电波</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { overflow: hidden; background: #0a0a0a; font-family: "PingFang SC", "Microsoft YaHei", sans-serif; color: #fff; }
+    #canvas-container { position: fixed; inset: 0; z-index: 0; }
+    .top-tag { position: fixed; top: 14px; left: 14px; z-index: 10; background: rgba(80,40,20,0.85); padding: 5px 12px; border-radius: 14px; font-size: 11px; }
+    .back-link { position: fixed; top: 14px; right: 14px; z-index: 10; color: #ccc; font-size: 11px; text-decoration: none; background: rgba(255,255,255,0.1); padding: 6px 12px; border-radius: 14px; }
+    .mini-panel { position: fixed; bottom: 16px; right: 16px; z-index: 20; width: 280px; background: rgba(10,8,6,0.82); border: 1px solid rgba(255,255,255,0.15); border-radius: 12px; padding: 12px 14px; }
+    .mini-year { font-size: 10px; color: #C41E3A; margin-bottom: 4px; }
+    .mini-title { font-size: 13px; font-weight: bold; color: #FFD700; margin-bottom: 6px; }
+    .mini-dialogue { font-size: 11px; line-height: 1.5; color: #FFE4B5; border-left: 2px solid #C41E3A; padding-left: 8px; font-style: italic; }
+    .narration-bar { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); z-index: 18; max-width: 520px; width: 90%; background: rgba(8,10,18,0.78); border: 1px solid rgba(255,215,0,0.35); border-radius: 10px; padding: 10px 16px; font-size: 12px; line-height: 1.55; color: #d8e0f0; font-style: italic; display: none; }
+    .narration-bar.show { display: block; }
+    .choice-overlay { position: fixed; inset: 0; z-index: 40; background: rgba(0,0,0,0.55); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; }
+    .choice-overlay.show { display: flex; }
+    .choice-modal { width: min(420px, 92vw); background: linear-gradient(160deg, rgba(22,14,10,0.97), rgba(12,10,8,0.98)); border: 2px solid #8B4513; border-radius: 16px; padding: 22px 24px; }
+    .choice-modal h3 { font-size: 15px; color: #FFD700; margin-bottom: 6px; }
+    .choice-modal .prompt { font-size: 12px; color: #aaa; margin-bottom: 14px; line-height: 1.5; }
+    .choice-modal-btn { display: block; width: 100%; background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.2); color: #eee; padding: 11px 14px; border-radius: 10px; cursor: pointer; text-align: left; font-size: 13px; margin-bottom: 8px; }
+    .choice-modal-btn:hover { background: rgba(139,69,19,0.5); }
+    .choice-modal-btn .opt { color: #FFD700; font-weight: bold; margin-right: 6px; }
+    .result-popup { position: fixed; bottom: 16px; left: 16px; z-index: 30; width: 260px; display: none; background: rgba(20,12,8,0.95); border: 2px solid #8B4513; border-radius: 12px; padding: 14px; text-align: center; }
+    .result-popup.show { display: block; }
+    .result-popup.success { border-color: #FFD700; }
+    .result-popup.badge-together { z-index: 210; }
+    .result-icon { font-size: 26px; margin-bottom: 4px; }
+    .result-title { font-size: 13px; font-weight: bold; margin-bottom: 4px; color: #fff; }
+    .result-close { background: #8B4513; color: #fff; border: none; padding: 5px 18px; border-radius: 12px; font-size: 11px; cursor: pointer; margin-top: 8px; }
+    .scene-nav {
+      position: fixed; top: 14px; left: 50%; transform: translateX(-50%); z-index: 12;
+      display: flex; gap: 6px; background: rgba(10,8,6,0.75); padding: 5px 8px;
+      border-radius: 20px; border: 1px solid rgba(255,255,255,0.15);
+    }
+    .scene-nav button {
+      background: transparent; border: none; color: #bbb; font-size: 11px;
+      padding: 5px 12px; border-radius: 14px; cursor: pointer; white-space: nowrap;
+    }
+    .scene-nav button.active { background: #8B4513; color: #fff; font-weight: bold; }
+    .scene-nav button:hover:not(.active) { color: #fff; background: rgba(255,255,255,0.1); }
+    #sceneLoading {
+      position: fixed; inset: 0; z-index: 50; display: none;
+      align-items: center; justify-content: center; background: rgba(0,0,0,0.55);
+      font-size: 13px; color: #FFD700;
+    }
+    #sceneLoading.show { display: flex; }
+    #bubble-layer { position: fixed; inset: 0; z-index: 25; pointer-events: none; overflow: hidden; }
+    .speech-bubble {
+      position: absolute; transform: translate(-50%, -100%);
+      max-width: 240px; padding: 10px 14px 12px;
+      background: linear-gradient(180deg, #fff9ee 0%, #f5e6c8 100%);
+      color: #2a1a0a;
+      border: 4px solid #6b4423;
+      outline: 2px solid #c9a227;
+      outline-offset: 3px;
+      border-radius: 3px;
+      font-size: 13px; line-height: 1.5; font-weight: 500;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.38), inset 0 0 12px rgba(255,255,255,0.35);
+      opacity: 0; transition: opacity 0.25s;
+    }
+    .speech-bubble.show { opacity: 1; }
+    .speech-bubble::before {
+      content: ''; position: absolute; inset: 5px;
+      border: 1px solid rgba(107,68,35,0.35); pointer-events: none;
+    }
+    .speech-bubble::after {
+      content: ''; position: absolute; bottom: -14px; left: 50%; transform: translateX(-50%);
+      border: 12px solid transparent; border-top-color: #6b4423;
+    }
+    .speech-bubble .speaker-name {
+      font-size: 10px; color: #8B4513; font-weight: bold; margin-bottom: 4px;
+      border-bottom: 1px solid rgba(139,69,19,0.25); padding-bottom: 3px;
+    }
+    .speech-bubble .bubble-text { color: #2a1a0a; font-size: 13px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
+    .intro-overlay {
+      position: fixed; inset: 0; z-index: 90;
+      background: linear-gradient(165deg, rgba(18,10,6,0.96) 0%, rgba(8,12,18,0.97) 50%, rgba(12,8,6,0.96) 100%);
+      display: none; align-items: center; justify-content: center;
+      padding: 24px 18px;
+    }
+    .intro-overlay.show { display: flex; }
+    .intro-panel {
+      max-width: 700px; width: 100%; max-height: 86vh; overflow-y: auto;
+      background: rgba(22,14,8,0.72); border: 1px solid rgba(255,215,0,0.32);
+      border-radius: 14px; padding: 26px 30px;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+    }
+    .intro-panel h2 { font-size: 19px; color: #FFD700; text-align: center; margin-bottom: 6px; letter-spacing: 0.1em; }
+    .intro-panel .intro-sub { font-size: 11px; color: #C41E3A; text-align: center; margin-bottom: 18px; }
+    #scene1IntroText {
+      font-size: 14px; line-height: 1.85; color: #e8e0d4;
+      min-height: 3em; text-align: justify;
+    }
+    #scene1IntroText .intro-cursor {
+      display: inline-block; width: 2px; height: 1em;
+      background: #FFD700; margin-left: 2px; vertical-align: text-bottom;
+      animation: introBlink 0.9s step-end infinite;
+    }
+    @keyframes introBlink { 50% { opacity: 0; } }
+    .intro-hint { font-size: 11px; color: #888; text-align: center; margin-top: 16px; }
+    .intro-skip-btn {
+      display: block; margin: 14px auto 0; background: transparent;
+      border: 1px solid rgba(255,255,255,0.22); color: #aaa;
+      padding: 6px 16px; border-radius: 12px; font-size: 11px; cursor: pointer;
+    }
+    .intro-skip-btn:hover { color: #fff; border-color: rgba(255,255,255,0.45); }
+    .hidden-badge-tag {
+      display: inline-block; font-size: 10px; color: #FFD700;
+      border: 1px solid rgba(255,215,0,0.45); border-radius: 10px;
+      padding: 3px 10px; margin-bottom: 14px;
+    }
+    .hidden-section { font-size: 14px; color: #C41E3A; font-weight: bold; margin: 14px 0 6px; }
+    #hiddenChapterText {
+      font-size: 13px; line-height: 1.82; color: #e8e0d4;
+      min-height: 3em; text-align: justify;
+    }
+  </style>
+  <link rel="stylesheet" href="assets/badge-reveal.css" />
+</head>
+<body>
+
+<div id="canvas-container"></div>
+<div class="top-tag" id="topTag">苏静洞 · 山洞里的电波</div>
+<button class="audio-btn" id="audioBtn" onclick="toggleAudio()" style="position:fixed;top:14px;right:118px;z-index:10;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.3);color:#fff;width:36px;height:36px;border-radius:50%;cursor:pointer;font-size:16px;">🔊</button>
+<nav class="scene-nav">
+  <button id="nav1" class="active" onclick="switchScene(1)">场景一·假夫妻</button>
+  <button id="nav2" onclick="switchScene(2)">场景二·发报</button>
+  <button id="nav3" onclick="switchScene(3)">场景三·坚守</button>
+</nav>
+<div id="sceneLoading">加载山洞场景…</div>
+<div class="intro-overlay" id="scene1IntroOverlay">
+  <div class="intro-panel">
+    <h2>苏静洞 · 历史原型</h2>
+    <div class="intro-sub">女地下工作者苏静（化名）· 1943 年冬</div>
+    <p id="scene1IntroText"></p>
+    <div class="intro-hint" id="scene1IntroHint">历史讲述中…</div>
+    <button type="button" class="intro-skip-btn" onclick="skipScene1Intro()">跳过朗读</button>
+  </div>
+</div>
+<div class="intro-overlay" id="hiddenChapterOverlay">
+  <div class="intro-panel">
+    <div class="hidden-badge-tag">🔓 隐藏篇章已解锁 · 无名坚守者</div>
+    <h2>《苏静真实身份考》</h2>
+    <div class="intro-sub">平西情报联络站 · 隐蔽战线</div>
+    <p id="hiddenChapterText"></p>
+    <div class="intro-hint" id="hiddenChapterHint">深度阅读中…</div>
+    <button type="button" class="intro-skip-btn" onclick="skipHiddenChapter()">跳过朗读</button>
+  </div>
+</div>
+<div id="bubble-layer"></div>
+<div class="narration-bar" id="narrationBar"></div>
+<div class="mini-panel">
+  <div class="mini-year" id="miniYear"></div>
+  <div class="mini-title" id="miniTitle"></div>
+  <div class="mini-dialogue" id="miniDialogue">等待剧情…</div>
+</div>
+<div class="choice-overlay" id="choiceModal">
+  <div class="choice-modal">
+    <h3 id="choiceModalTitle"></h3>
+    <div class="prompt" id="choiceModalPrompt"></div>
+    <div id="choiceModalBtns"></div>
+  </div>
+</div>
+<div class="result-popup" id="resultPopup">
+  <div class="result-icon" id="resultIcon"></div>
+  <div class="result-title" id="resultTitle"></div>
+  <div id="resultDesc" class="result-desc" style="font-size:11px;line-height:1.5;color:#aaa;margin-bottom:4px;"></div>
+  <button class="result-close" onclick="closeResult()">继续</button>
+</div>
+
+<script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
+<script src="https://unpkg.com/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+<script src="assets/badge-reveal.js"></script>
+<script>
+// ═══ 场景一开场 · 苏静历史背景 ═══
+const SCENE1_INTRO_TEXT =
+  '苏静山洞的历史原型是女地下工作者苏静（化名）的真实事迹。1943 年冬，她被委派到平西情报联络站负责新建电台的工作，以加强平津地下情报的联络。' +
+  '为绝对保密，她与落脚农户的儿子假扮夫妻，白天与"家人"一起下地干活，晚上则在山上一个狭小的山洞里用电台收发情报。' +
+  '发报地点设在村外一个空间极为狭窄、人无法站直的山洞里，仅靠一盏煤油灯的光亮，在几块石板垒成的"桌子"上操作电台。' +
+  '她在这样艰苦的环境中坚持工作，从抗日战争时期一直持续到解放战争胜利。' +
+  '这段真实历史如今在纪念馆第一展厅中被复原陈列，一尊端坐在石桌前操作电台的妇女雕塑向参观者讲述了这段故事，也成为红色体验课程"收发报"学习的核心场景之一。';
+
+const HIDDEN_CHAPTER_TEXT =
+  '苏静是平西情报联络站秘密电台负责人的化名。1943 年冬天，为使平津地下情报联络畅通，上级决定在妙峰山涧沟村建立一处隐蔽电台，苏静被派往这里负责电台收发报工作。\n\n' +
+  '【假扮夫妻的掩护】\n' +
+  '为了绝对保密和便于开展工作，苏静与房东的儿子假扮成夫妻。每天早晨她跟"婆婆"一起做饭，白天与"家人"一起下地干农活，而到了晚上，则独自钻进村外的山洞里秘密收发情报。\n\n' +
+  '【山洞发报的艰苦岁月】\n' +
+  '真正的发报地点设在村外一个空间极为狭小、人无法站直的山洞里。每到收发电报时间，苏静就以砍柴或下地为名钻进山洞，仅靠一盏煤油灯的光亮，在几块石板垒成的"桌子"上操作电台。山洞里阴暗潮湿，冬天后背顶着寒霜，夏天滴水不断，无论寒冬酷暑、风霜雨雪，她数年如一日，一直坚持到解放战争胜利。\n\n' +
+  '【"苏静"的真实身份】\n' +
+  '平西情报联络站运营负责人闫玮曾透露："苏静同志其实是一个化名，当时在隐蔽战线有很多同志们其实都是化名的，真实的姓名和事迹不为人所知。"这正是隐蔽战线工作者的常态——许多人在工作中使用化名，真实姓名和生平至今无从考证。\n\n' +
+  '【影视作品原型辨析】\n' +
+  '关于苏静是否为《潜伏》原型，存在两种说法。有资料认为苏静是电视剧《潜伏》中"假扮夫妻"情节的原型——1943 年冬天，苏静与户主的儿子假扮成夫妻，白天一起生活，晚上则独自在山洞中秘密发电报。但也有资料明确指出，《潜伏》中翠萍的人物原型是王凤岐。王凤岐曾是游击队长，枪法准，组织安排她从河北易县假装王文的妻子来到北平城，掩护王文执行秘密发报工作。与电视剧中"翠萍"初到城里闹笑话不同，真实的王凤岐"很聪明"，记忆力好，上级交代的任务重复几遍就能记住，不用纸笔让情报更加安全。而《潜伏》中余则成的原型之一，则是王文。他是一名红军战士，1938 年被派往莫斯科学习无线电通讯和情报工作，回国后先后被派往北平、上海担任秘密电台台长，长期从事情报工作。王文与王凤岐见面二十多天后秘密举行了婚礼，由"假夫妻"成了"真爱人"，一直恩爱到老。\n\n' +
+  '【历史的真实与温度】\n' +
+  '苏静在纪念馆第一展厅中，以一尊"端坐在几块石板垒成的桌前操作电台的妇女雕塑"的形象被后人铭记。讲解员在讲述苏静在这个异常艰苦的环境里工作了六年时，常常潸然泪下。这尊雕塑和这些真实的故事，共同构成了对那段隐秘历史最好的注脚。';
+
+const BADGE_KEY = 'sujing_badges_v1';
+
+// ═══ 苏静洞 · 剧情（全部写在本文件内）═══
+const SCENES = {
+  1: {
+    tag: '场景一 · 假夫妻', year: '1943年深冬', title: '掩护身份',
+    choiceTitle: '婆婆问你', choicePrompt: '「闺女，你老家是哪儿的？」<br>你的真实身份绝不能暴露。上级只交代过一句：“组织上会安排好一切。”',
+    narration: '1943年深冬，你以“苏静”的身份被派到涧沟村。上级安排的掩护身份是农户家新过门的媳妇 —— 与房东的儿子“柱子”假扮夫妻。第一天早晨，你跟着“婆婆”一起做饭。灶台前，“婆婆”一边添柴一边随口问……',
+    dialogue: { speaker: 'mother', name: '婆婆', text: '闺女，你老家是哪儿的？' },
+    dialogueInAudio: false,
+    choices: [
+      { label: 'A', text: '"我老家是河北易县的，家里遭了灾，逃难过来的。"', success: true, result: '✅ 回答正确！逃难身份符合当时的社会背景，合情合理，没有引起怀疑，顺利稳住了长期潜伏的掩护身份。进入下一项任务。', speaker: 'mother', speech: '唉，可怜见的，以后这就是你家。' },
+      { label: 'B', text: '"我是本地人啊，就山那边的。"', success: false, result: '❌ 任务失败。错误解释：声称本地人却答不出具体村落，破绽明显，会引起房东的怀疑，直接暴露潜伏身份。请重试。', speaker: 'mother', speech: '山那边？哪个村啊？' },
+      { label: 'C', text: '低头不语，只是默默烧火', success: false, result: '❌ 任务未达最优。错误解释：沉默应对虽未直接暴露身份，但不利于建立与掩护家庭的信任，会给后续长期潜伏留下隐患。请重试。' },
+    ],
+    camera: { pos: [0, 1.45, 2.6], look: [0, 1.2, 0] },
+    room: 'kitchen',
+  },
+  2: {
+    tag: '场景二 · 深夜发报', year: '1943年深冬', title: '山洞电台',
+    choiceTitle: '突发情况', choicePrompt: '山脚下传来犬吠和杂乱的脚步声，手电光正在山路上晃动。你怎么做？',
+    narration: '夜幕降临，村庄安静下来。你背着发报机零件，摸黑钻进后山的山洞。洞里站不直身，你只能缩着蹲坐在几块石板垒成的“桌子”前。煤油灯的火苗被山风晃得忽明忽灭，你戴上耳机，开始调试频率。今晚的任务是把北平城内传来的情报转发给根据地。电键按下，“滴答”声在山洞里格外清脆。突然，山脚下传来犬吠和杂乱的脚步声。你探头望去 —— 几道手电光正在山路上晃动。',
+    dialogue: null,
+    choices: [
+      { label: 'A', text: '立即关机，拆解设备藏入洞底石缝，退到洞口暗处观察', success: true, result: '✅ 回答正确！你及时销毁隐藏设备、隐蔽自身，成功躲过伪军巡逻队的搜查，设备与身份均无暴露。进入下一项任务。' },
+      { label: 'B', text: '继续发报，把最后几组电码发完', success: false, result: '❌ 任务失败。错误解释：夜间电波信号极易被敌军测向设备锁定，坚持发报会直接暴露位置，导致被捕、情报线路彻底中断。请重试。' },
+      { label: 'C', text: '拎起电台往外跑，寻找更隐蔽的位置', success: false, result: '❌ 任务损失严重。错误解释：夜间山路视野极差，贸然携带电台出逃极易损坏设备，也会暴露行踪，导致情报传送中断数日。请重试。' },
+    ],
+    camera: { pos: [0, 1.1, 2.2], look: [0, 0.85, 0] },
+    room: 'cave',
+  },
+  3: {
+    tag: '场景三 · 六年坚守', year: '1949年前夕', title: '最后的选择',
+    choiceTitle: '密电到达', choicePrompt: '你可以选择离开这个山洞、结束这种随时可能暴露的生活。但你低头看了看手中的发报机 —— 这台机器连接着多少人的安危？你决定 ——',
+    narration: '又一个寒冬。你已经在山洞里发报了将近三年。手指上冻裂的伤口还没愈合，新的裂口又添了上来。你的“丈夫”柱子每晚在山脚下放哨，你们的“婚姻”已经维持了三年，村里人早已不再怀疑。今夜，你收到上级发来的一条密电：“组织感谢你的坚守。任务结束后，你可以申请调回根据地。”',
+    dialogue: { speaker: 'radio', name: '密电', text: '组织感谢你的坚守。你可以申请调回根据地。' },
+    dialogueInAudio: true,
+    choices: [
+      { label: 'A', text: '申请调回根据地，结束潜伏任务', success: false, result: '❌ 不符合潜伏使命要求。错误解释：当时平津情报工作仍处于解放战争关键阶段，专属电台岗位不可空缺，坚守到胜利是地下工作者的核心使命。请重试。' },
+      { label: 'B', text: '继续留下，坚守到胜利的那一天', success: true, result: '✅ 回答正确！你选择继续坚守岗位，在狭小山洞中坚持收发情报六年，直至解放战争胜利，圆满完成了潜伏任务。\n🎉 恭喜完成苏静山洞全部潜伏任务，解锁专属徽章：无名坚守者', badge: '无名坚守者' },
+    ],
+    camera: { pos: [0, 1.05, 2.0], look: [0, 0.8, 0] },
+    room: 'cave',
+  },
+};
+
+// ═══ 3D 模型路径（glb 放在 models/sujing/）═══
+const CAVE_CFG = { scale: 1.0, rotY: 0, targetSize: 4.0 };
+const CAVE_CAM = { backZ: 0.48, eyeY: 0.52, lookY: 0.38, lookZ: 0.5, fov: 64 };
+const KITCHEN_CFG = { scale: 1.0, rotY: 0, targetSize: 4.8 };
+const KITCHEN_MODEL_WALL = 'minZ'; // 模型自带墙在后方（-Z），此面不生成墙体
+const POPO_CFG = { heightRatio: 0.50, rotY: 0, floorSink: 0.02, offsetX: 0.04, depthZ: 0.38 }; // rotY=0 正脸朝相机（+Z）
+const KITCHEN_CAM = { distZ: 0.36, eyeRel: 0.90, lookFace: 0.95, fov: 52 };
+const MODEL_FILES = {
+  cave:    'models/sujing/cave.glb',
+  kitchen: 'models/sujing/kitchen.glb',
+  popo:    'models/sujing/popo.glb',
+};
+const NARRATION_MP3 = {
+  intro:  'audio/sujing/intro.mp3',
+  // scene1 使用浏览器配音（旁白 + 婆婆对白）
+  scene2: 'audio/sujing/scene2.mp3',
+  scene3: 'audio/sujing/scene3.mp3',
+};
+const SFX_MP3 = {
+  dog:       'models/sujing/2248.wav', // Meshy 导出的狗叫音效
+  footsteps: 'models/sujing/y784.wav', // Meshy K5 模型导出的脚步音效
+  morse:     'audio/sujing/morse.mp3',
+};
+
+function returnToCheckin() {
+  const params = new URLSearchParams(window.location.search);
+  const spotId = params.get('spot') || '';
+  try {
+    if (window.parent && window.parent !== window) {
+      window.parent.postMessage({ type: 'jiankou-scene-complete', spotId: spotId }, '*');
+      return;
+    }
+  } catch (e) {}
+  try { sessionStorage.setItem('jiankouCompletedSpot', spotId); } catch (e) {}
+  window.location.href = new URL('../index.html', window.location.href).href;
+}
+
+let currentScene = 1, sceneReady = false, audioOn = true;
+let pendingNext = null, autoTimer = null;
+let pendingRetry = false;
+let renderer, scene3d, camera, sceneObjects = [];
+let caveLoaded = false;
+let patrolLights = [];
+let lampLight = null;
+let stoveLight = null;
+let animTick = 0;
+let sceneBuilding = false;
+let actors = {};
+let activeBubble = null;
+const _proj = new THREE.Vector3();
+let audioCtx = null;
+let sfxCache = {};
+let morseTimer = null;
+let footstepTimer = null;
+let dogTimer = null;
+let dogInitialTimer = null;
+let morseAudio = null;
+let footstepAudio = null;
+let activeNarrationAudio = null;
+const narrationMp3Cache = {};
+let dialogueBubbleTimer = null;
+let scene1IntroDone = false;
+let scene1IntroFinishCb = null;
+let pendingHiddenChapter = false;
+let hiddenChapterSkipRequested = false;
+const gltfLoader = new THREE.GLTFLoader();
+const VOICES = { narrator: null, male: null, female: null };
+
+function initVoices() {
+  const vs = speechSynthesis.getVoices().filter(v => v.lang.includes('zh'));
+  if (!vs.length) return;
+  VOICES.narrator = vs.find(v => /huihui|xiaoxiao|晓/i.test(v.name)) || vs[0];
+  VOICES.female   = vs.find(v => /huihui|yaoyao|女/i.test(v.name)) || vs[0];
+  VOICES.male     = vs.find(v => /yunxi|kangkang|男/i.test(v.name)) || vs[0];
+}
+speechSynthesis.onvoiceschanged = initVoices;
+initVoices();
+
+function add(obj) { scene3d.add(obj); sceneObjects.push(obj); }
+function clearScene() {
+  sceneObjects.forEach(o => scene3d.remove(o));
+  sceneObjects.length = 0;
+  scene3d.fog = null;
+  patrolLights.length = 0;
+  lampLight = null;
+  stoveLight = null;
+  for (const k in actors) delete actors[k];
+  hideSpeechBubble();
+}
+function getScene() { return SCENES[currentScene]; }
+
+function setSceneLoading(on, text) {
+  const el = document.getElementById('sceneLoading');
+  if (text) el.textContent = text;
+  el.classList.toggle('show', on);
+}
+
+function updateNav() {
+  [1, 2, 3].forEach(i => {
+    const btn = document.getElementById('nav' + i);
+    if (btn) btn.classList.toggle('active', i === currentScene);
+  });
+}
+
+function stopNarrationAudio() {
+  if (activeNarrationAudio) {
+    activeNarrationAudio.pause();
+    activeNarrationAudio.currentTime = 0;
+    activeNarrationAudio = null;
+  }
+}
+
+let dialogueBubblePollId = null;
+
+function clearDialogueBubbleTimer() {
+  if (dialogueBubbleTimer) {
+    clearTimeout(dialogueBubbleTimer);
+    dialogueBubbleTimer = null;
+  }
+  if (dialogueBubblePollId) {
+    clearInterval(dialogueBubblePollId);
+    dialogueBubblePollId = null;
+  }
+}
+
+function scheduleInAudioDialogueBubble(dialogue, dialogueAt) {
+  clearDialogueBubbleTimer();
+  if (!dialogue) return;
+  const key = dialogue.speaker === 'mother' ? 'mother' : dialogue.speaker;
+  if (!key || key === 'radio') return;
+  let shown = false;
+  const show = () => {
+    if (shown) return;
+    shown = true;
+    clearDialogueBubbleTimer();
+    if (activeNarrationAudio) activeNarrationAudio.removeEventListener('timeupdate', onTime);
+    if (!actors[key]) return;
+    showSpeechBubble(key, dialogue.name, dialogue.text);
+    document.getElementById('miniDialogue').textContent = dialogue.name + '："' + dialogue.text + '"';
+  };
+  const onTime = () => {
+    const audio = activeNarrationAudio;
+    if (audio && audio.currentTime >= dialogueAt) show();
+  };
+  const audio = activeNarrationAudio;
+  const arm = () => {
+    const at = typeof dialogueAt === 'number' ? dialogueAt : NaN;
+    if (!isFinite(at) || at < 0) {
+      const dur = audio && isFinite(audio.duration) ? audio.duration : 0;
+      dialogueBubbleTimer = setTimeout(show, dur > 0 ? Math.max(500, dur * 1000 * 0.7) : 8000);
+      return;
+    }
+    audio.addEventListener('timeupdate', onTime);
+    dialogueBubblePollId = setInterval(() => {
+      const a = activeNarrationAudio;
+      if (a && a.currentTime >= at) show();
+    }, 30);
+  };
+  if (audio) {
+    if (isFinite(audio.duration) && audio.duration > 0) arm();
+    else audio.addEventListener('loadedmetadata', arm, { once: true });
+  }
+}
+
+function playDocAudio(key, textFallback, onEnd) {
+  if (!audioOn) { if (onEnd) onEnd(); return; }
+  const src = NARRATION_MP3[key];
+  if (!src) {
+    tts(textFallback, 'narrator', onEnd);
+    return;
+  }
+  speechSynthesis.cancel();
+  stopNarrationAudio();
+  let audio = narrationMp3Cache[key];
+  if (!audio) {
+    audio = new Audio(src);
+    audio.preload = 'auto';
+    narrationMp3Cache[key] = audio;
+  } else {
+    audio.pause();
+    audio.currentTime = 0;
+  }
+  activeNarrationAudio = audio;
+  const cleanup = () => {
+    audio.removeEventListener('ended', onDone);
+    audio.removeEventListener('error', onFail);
+  };
+  const onDone = () => {
+    cleanup();
+    if (activeNarrationAudio === audio) activeNarrationAudio = null;
+    if (onEnd) onEnd();
+  };
+  const onFail = () => {
+    cleanup();
+    if (activeNarrationAudio === audio) activeNarrationAudio = null;
+    tts(textFallback, 'narrator', onEnd);
+  };
+  audio.addEventListener('ended', onDone);
+  audio.addEventListener('error', onFail);
+  audio.play().catch(onFail);
+}
+
+function tts(text, role, onEnd) {
+  if (!audioOn || !text) { if (onEnd) onEnd(); return; }
+  speechSynthesis.cancel();
+  stopNarrationAudio();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = 'zh-CN';
+  u.voice = role === 'female' ? VOICES.female : role === 'male' ? VOICES.male : VOICES.narrator;
+  u.rate = 0.78; u.pitch = 0.95;
+  u.onend = () => { if (onEnd) onEnd(); };
+  speechSynthesis.speak(u);
+}
+
+function speakNarration(text, onEnd) {
+  const bar = document.getElementById('narrationBar');
+  bar.textContent = text;
+  bar.classList.add('show');
+  hideSpeechBubble();
+  clearDialogueBubbleTimer();
+  const s = getScene();
+  playDocAudio('scene' + currentScene, text, () => {
+    setTimeout(() => bar.classList.remove('show'), 400);
+    if (onEnd) onEnd();
+  });
+  if (s.dialogue && s.dialogueInAudio) {
+    scheduleInAudioDialogueBubble(s.dialogue, s.dialogueAt);
+  }
+}
+
+function speakCharacter(name, text, onEnd) {
+  document.getElementById('miniDialogue').textContent = name + '："' + text + '"';
+  if (name === '婆婆' && actors.mother) showSpeechBubble('mother', name, text);
+  tts(text, name === '婆婆' ? 'female' : 'male', () => {
+    setTimeout(() => { hideSpeechBubble(); if (onEnd) onEnd(); }, 500);
+  });
+}
+
+function registerActor(key, cfg) {
+  actors[key] = { x: cfg.x, z: cfg.z, headY: cfg.headY || 1.6 };
+}
+
+function showSpeechBubble(key, name, text) {
+  hideSpeechBubble();
+  const layer = document.getElementById('bubble-layer');
+  if (!layer) return;
+  const el = document.createElement('div');
+  el.className = 'speech-bubble show';
+  const line = (text || '').replace(/[<>&]/g, (ch) => ({ '<':'&lt;', '>':'&gt;', '&':'&amp;' }[ch]));
+  el.innerHTML = '<div class="speaker-name">' + (name || '') + '</div><div class="bubble-text">' + line + '</div>';
+  layer.appendChild(el);
+  activeBubble = { el, key };
+  updateBubblePosition();
+  if (!actors[key]) {
+    el.style.left = '50%';
+    el.style.top = '42%';
+  }
+}
+
+function hideSpeechBubble() {
+  if (activeBubble) { activeBubble.el.remove(); activeBubble = null; }
+}
+
+function revealDialogueThenChoices(dialogue, openChoices) {
+  if (dialogue && dialogue.speaker === 'mother') {
+    showSpeechBubble('mother', dialogue.name, dialogue.text);
+    document.getElementById('miniDialogue').textContent = dialogue.name + '："' + dialogue.text + '"';
+    setTimeout(() => { if (openChoices) openChoices(); }, 1800);
+  } else if (dialogue) {
+    document.getElementById('miniDialogue').textContent = dialogue.name + '："' + dialogue.text + '"';
+    setTimeout(() => { if (openChoices) openChoices(); }, 1200);
+  } else if (openChoices) {
+    openChoices();
+  }
+}
+
+function updateBubblePosition() {
+  if (!activeBubble || !actors[activeBubble.key]) return;
+  const a = actors[activeBubble.key];
+  _proj.set(a.x + 0.12, a.headY + 0.06, a.z);
+  _proj.project(camera);
+  const x = (_proj.x * 0.5 + 0.5) * window.innerWidth + 36;
+  const y = (-_proj.y * 0.5 + 0.5) * window.innerHeight - 8;
+  activeBubble.el.style.left = x + 'px';
+  activeBubble.el.style.top = y + 'px';
+}
+
+function updateUI() {
+  const s = getScene();
+  document.getElementById('topTag').textContent = '🕳️ ' + s.tag;
+  document.getElementById('miniYear').textContent = s.year;
+  document.getElementById('miniTitle').textContent = s.title;
+  updateNav();
+}
+
+function switchScene(n) {
+  if (sceneBuilding) return;
+  speechSynthesis.cancel();
+  hidePanelsForSwitch();
+  currentScene = n;
+  buildScene(n, () => setTimeout(playOpening, 350));
+}
+
+function hidePanelsForSwitch() {
+  document.getElementById('choiceModal').classList.remove('show');
+  document.getElementById('resultPopup').classList.remove('show');
+  document.getElementById('narrationBar').classList.remove('show');
+  document.getElementById('scene1IntroOverlay').classList.remove('show');
+  document.getElementById('hiddenChapterOverlay').classList.remove('show');
+  pendingNext = null;
+  pendingHiddenChapter = false;
+  hiddenChapterSkipRequested = true;
+  if (autoTimer) clearTimeout(autoTimer);
+  hideSpeechBubble();
+  stopAllSfx();
+  speechSynthesis.cancel();
+  stopNarrationAudio();
+  clearDialogueBubbleTimer();
+}
+
+function setScene1IntroUiVisible(visible) {
+  const nav = document.querySelector('.scene-nav');
+  const panel = document.querySelector('.mini-panel');
+  const tag = document.getElementById('topTag');
+  if (nav) nav.style.visibility = visible ? '' : 'hidden';
+  if (panel) panel.style.visibility = visible ? '' : 'hidden';
+  if (tag) tag.style.visibility = visible ? '' : 'hidden';
+}
+
+function typewriterIntro(el, text, charMs, onDone) {
+  el.textContent = '';
+  let i = 0;
+  const cursor = document.createElement('span');
+  cursor.className = 'intro-cursor';
+  el.appendChild(cursor);
+  const tick = () => {
+    if (i >= text.length) {
+      cursor.remove();
+      if (onDone) onDone();
+      return;
+    }
+    el.insertBefore(document.createTextNode(text[i]), cursor);
+    i++;
+    setTimeout(tick, charMs);
+  };
+  tick();
+}
+
+function finishScene1Intro() {
+  document.getElementById('scene1IntroOverlay').classList.remove('show');
+  document.getElementById('scene1IntroText').textContent = '';
+  setScene1IntroUiVisible(true);
+  scene1IntroDone = true;
+  const cb = scene1IntroFinishCb;
+  scene1IntroFinishCb = null;
+  if (cb) cb();
+}
+
+function skipScene1Intro() {
+  speechSynthesis.cancel();
+  stopNarrationAudio();
+  finishScene1Intro();
+}
+
+function playPreScene1Intro(onDone) {
+  if (scene1IntroDone) { if (onDone) onDone(); return; }
+  scene1IntroFinishCb = onDone;
+  setScene1IntroUiVisible(false);
+  document.getElementById('choiceModal').classList.remove('show');
+  hideSpeechBubble();
+  speechSynthesis.cancel();
+
+  const overlay = document.getElementById('scene1IntroOverlay');
+  const body = document.getElementById('scene1IntroText');
+  const hint = document.getElementById('scene1IntroHint');
+  overlay.classList.add('show');
+  hint.textContent = '历史讲述中…';
+
+  let twDone = false;
+  let speechDone = false;
+  const maybeFinish = () => {
+    if (twDone && speechDone) {
+      hint.textContent = '即将进入场景一…';
+      setTimeout(finishScene1Intro, 700);
+    }
+  };
+
+  typewriterIntro(body, SCENE1_INTRO_TEXT, 36, () => { twDone = true; maybeFinish(); });
+  playDocAudio('intro', SCENE1_INTRO_TEXT, () => { speechDone = true; maybeFinish(); });
+}
+
+function startScene1AfterIntro() {
+  buildScene(1, () => setTimeout(playOpening, 400));
+}
+
+function loadBadges() {
+  try {
+    const raw = localStorage.getItem(BADGE_KEY);
+    return new Set(raw ? JSON.parse(raw) : []);
+  } catch (e) { return new Set(); }
+}
+
+function saveBadges(set) {
+  try { localStorage.setItem(BADGE_KEY, JSON.stringify([...set])); } catch (e) {}
+}
+
+function awardBadge(name) {
+  if (!name) return;
+  const badges = loadBadges();
+  badges.add(name);
+  saveBadges(badges);
+}
+
+function hasBadge(name) {
+  return loadBadges().has(name);
+}
+
+function speakLongText(text, onEnd) {
+  if (!audioOn || !text) { if (onEnd) onEnd(); return; }
+  speechSynthesis.cancel();
+  const parts = text.match(/[^。！？\n]+[。！？]?/g) || [text];
+  let i = 0;
+  const speakNext = () => {
+    if (hiddenChapterSkipRequested || i >= parts.length) {
+      if (onEnd) onEnd();
+      return;
+    }
+    const part = parts[i++].trim();
+    if (!part || part.startsWith('【')) { speakNext(); return; }
+    const u = new SpeechSynthesisUtterance(part);
+    u.lang = 'zh-CN';
+    u.voice = VOICES.narrator;
+    u.rate = 0.76;
+    u.pitch = 0.95;
+    u.onend = speakNext;
+    u.onerror = speakNext;
+    speechSynthesis.speak(u);
+  };
+  speakNext();
+}
+
+function skipHiddenChapter() {
+  // 立刻停声，马上返回打卡界面
+  hiddenChapterSkipRequested = true;
+  speechSynthesis.cancel();
+  if (typeof stopAllSfx === 'function') stopAllSfx();
+  const overlay = document.getElementById('hiddenChapterOverlay');
+  if (overlay) overlay.classList.remove('show');
+  const text = document.getElementById('hiddenChapterText');
+  if (text) text.textContent = '';
+  returnToCheckin();
+}
+
+function finishHiddenChapter() {
+  if (hiddenChapterSkipRequested) return;
+  hiddenChapterSkipRequested = false;
+  document.getElementById('hiddenChapterOverlay').classList.remove('show');
+  document.getElementById('hiddenChapterText').textContent = '';
+  setScene1IntroUiVisible(true);
+  document.getElementById('miniDialogue').textContent = '隐藏篇章《苏静真实身份考》已聆听完毕。';
+  setTimeout(returnToCheckin, 1200);
+}
+
+function playHiddenChapter() {
+  if (!hasBadge('无名坚守者')) return;
+  setScene1IntroUiVisible(false);
+  document.getElementById('choiceModal').classList.remove('show');
+  hideSpeechBubble();
+  speechSynthesis.cancel();
+  hiddenChapterSkipRequested = false;
+
+  const overlay = document.getElementById('hiddenChapterOverlay');
+  const body = document.getElementById('hiddenChapterText');
+  const hint = document.getElementById('hiddenChapterHint');
+  overlay.classList.add('show');
+  hint.textContent = '深度阅读中…';
+
+  let twDone = false;
+  let speechDone = false;
+  const maybeFinish = () => {
+    if (hiddenChapterSkipRequested) return;
+    if (twDone && speechDone) {
+      hint.textContent = '篇章结束';
+      setTimeout(finishHiddenChapter, 1200);
+    }
+  };
+
+  typewriterIntro(body, HIDDEN_CHAPTER_TEXT, 22, () => { twDone = true; maybeFinish(); });
+  speakLongText(HIDDEN_CHAPTER_TEXT, () => { speechDone = true; maybeFinish(); });
+}
+
+function openHiddenChapterFromResult() {
+  pendingHiddenChapter = false;
+  document.getElementById('resultPopup').classList.remove('show');
+  playHiddenChapter();
+}
+
+function initAudio() {
+  if (audioCtx) return;
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+}
+
+function toggleAudio() {
+  audioOn = !audioOn;
+  document.getElementById('audioBtn').textContent = audioOn ? '🔊' : '🔇';
+  if (!audioOn) {
+    speechSynthesis.cancel();
+    stopNarrationAudio();
+    hideSpeechBubble();
+    stopAllSfx();
+  } else {
+    initAudio();
+    if (currentScene === 2) startScene2PatrolSfx();
+  }
+}
+
+function stopAllSfx() {
+  if (morseTimer) { clearInterval(morseTimer); morseTimer = null; }
+  if (footstepTimer) { clearInterval(footstepTimer); footstepTimer = null; }
+  if (dogTimer) { clearInterval(dogTimer); dogTimer = null; }
+  if (dogInitialTimer) { clearTimeout(dogInitialTimer); dogInitialTimer = null; }
+  if (morseAudio) { morseAudio.pause(); morseAudio = null; }
+  if (footstepAudio) { footstepAudio.pause(); footstepAudio = null; }
+  const dog = sfxCache.dog_once;
+  if (dog) { dog.pause(); dog.currentTime = 0; }
+}
+
+function synthTone(freq, dur, type, vol) {
+  if (!audioOn || !audioCtx) return;
+  const o = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  o.type = type || 'sine';
+  o.frequency.value = freq;
+  g.gain.value = vol || 0.08;
+  g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+  o.connect(g);
+  g.connect(audioCtx.destination);
+  o.start();
+  o.stop(audioCtx.currentTime + dur);
+}
+
+function synthMorseTick() {
+  synthTone(880, 0.04, 'square', 0.06);
+  setTimeout(() => synthTone(660, 0.04, 'square', 0.05), 70);
+}
+
+function synthFootstep() {
+  synthTone(90 + Math.random() * 30, 0.09, 'triangle', 0.14);
+}
+
+function playSfxOnce(key) {
+  if (!audioOn) return;
+  if (key === 'dog' && currentScene !== 2) return;
+  initAudio();
+  const src = SFX_MP3[key];
+  if (!src) return;
+  let a = sfxCache[key + '_once'];
+  if (!a) {
+    a = new Audio(src);
+    sfxCache[key + '_once'] = a;
+  }
+  a.currentTime = 0;
+  a.volume = key === 'dog' ? 0.55 : 0.4;
+  a.play().catch(() => {});
+}
+
+function playLoopSfx(key, vol) {
+  if (!audioOn) return null;
+  initAudio();
+  const src = SFX_MP3[key];
+  if (!src) return null;
+  let a = sfxCache[key + '_loop'];
+  if (!a) {
+    a = new Audio(src);
+    a.loop = true;
+    sfxCache[key + '_loop'] = a;
+  }
+  a.volume = vol;
+  a.currentTime = 0;
+  a.play().catch(() => {});
+  return a;
+}
+
+function startMorseTick() {
+  stopAllSfx();
+  morseAudio = playLoopSfx('morse', 0.25);
+  if (!morseAudio) {
+    morseTimer = setInterval(synthMorseTick, 420);
+  }
+}
+
+function startScene2PatrolSfx() {
+  if (currentScene !== 2 || !audioOn) return;
+  initAudio();
+  footstepAudio = playLoopSfx('footsteps', 0.35);
+  if (!footstepAudio) {
+    footstepTimer = setInterval(synthFootstep, 520);
+  }
+  if (dogInitialTimer) clearTimeout(dogInitialTimer);
+  dogTimer = setInterval(() => {
+    if (currentScene !== 2) return;
+    playSfxOnce('dog');
+  }, 2800 + Math.random() * 2200);
+  dogInitialTimer = setTimeout(() => {
+    dogInitialTimer = null;
+    if (currentScene === 2) playSfxOnce('dog');
+  }, 600);
+}
+
+function showChoices() {
+  const s = getScene();
+  document.getElementById('choiceModalTitle').textContent = s.choiceTitle;
+  document.getElementById('choiceModalPrompt').innerHTML = s.choicePrompt;
+  const box = document.getElementById('choiceModalBtns');
+  box.innerHTML = '';
+  s.choices.forEach(c => {
+    const btn = document.createElement('button');
+    btn.className = 'choice-modal-btn';
+    btn.innerHTML = '<span class="opt">' + c.label + '.</span>' + c.text;
+    btn.onclick = () => handleChoice(c);
+    box.appendChild(btn);
+  });
+  document.getElementById('choiceModal').classList.add('show');
+}
+
+function playOpening() {
+  document.getElementById('choiceModal').classList.remove('show');
+  const s = getScene();
+  document.getElementById('miniDialogue').textContent = '…';
+  stopAllSfx();
+
+  if (currentScene === 2) {
+    startMorseTick();
+    speakNarration(s.narration, () => {
+      startScene2PatrolSfx();
+      showChoices();
+    });
+    return;
+  }
+
+  speakNarration(s.narration, () => {
+    if (s.dialogue && !s.dialogueInAudio) speakCharacter(s.dialogue.name, s.dialogue.text, showChoices);
+    else {
+      if (s.dialogue && s.dialogueInAudio && s.dialogue.speaker === 'mother') {
+        showSpeechBubble('mother', s.dialogue.name, s.dialogue.text);
+        document.getElementById('miniDialogue').textContent = s.dialogue.name + '："' + s.dialogue.text + '"';
+      } else if (s.dialogue) {
+        document.getElementById('miniDialogue').textContent = s.dialogue.name + '："' + s.dialogue.text + '"';
+      }
+      showChoices();
+    }
+  });
+}
+
+function handleChoice(c) {
+  document.getElementById('choiceModal').classList.remove('show');
+  hideSpeechBubble();
+  clearDialogueBubbleTimer();
+  if (currentScene === 2) stopAllSfx();
+  pendingHiddenChapter = false;
+  pendingRetry = false;
+  if (autoTimer) clearTimeout(autoTimer);
+  const isFinalBadge = c.success && currentScene === 3 && c.badge === '无名坚守者';
+  const p = document.getElementById('resultPopup');
+  p.className = 'result-popup ' + (c.success ? 'success ' : '') + 'show' + (isFinalBadge ? ' badge-together' : '');
+  document.getElementById('resultIcon').textContent = isFinalBadge ? '🏅' : (c.success ? '✅' : '❌');
+  document.getElementById('resultTitle').textContent = isFinalBadge ? '获得徽章' : (c.success ? '回答正确' : '回答错误');
+  document.getElementById('resultDesc').textContent = c.result;
+  if (isFinalBadge) awardBadge(c.badge);
+  if (c.success && currentScene < 3) {
+    // 答对：显示正确解释，随后跳转下一场景
+    pendingNext = currentScene + 1;
+    document.querySelector('.result-close').textContent = '继续 → 场景' + pendingNext;
+    const after = () => { autoTimer = setTimeout(goNext, 2200); };
+    if (c.speech) setTimeout(() => speakCharacter(c.speaker === 'mother' ? '婆婆' : '林迈可', c.speech, after), 400);
+    else after();
+  } else if (isFinalBadge) {
+    pendingHiddenChapter = true;
+    document.querySelector('.result-close').textContent = '继续 → 隐藏篇章';
+    if (typeof playBadgeReveal === 'function') playBadgeReveal('无名坚守者');
+    autoTimer = setTimeout(openHiddenChapterFromResult, 3200);
+  } else {
+    // 答错：显示错误解释，可重试
+    pendingNext = null;
+    pendingRetry = true;
+    document.querySelector('.result-close').textContent = '重试';
+    if (c.speech) setTimeout(() => speakCharacter(c.speaker === 'mother' ? '婆婆' : '林迈可', c.speech), 400);
+  }
+}
+
+function closeResult() {
+  document.getElementById('resultPopup').classList.remove('show');
+  if (pendingRetry) {
+    pendingRetry = false;
+    setTimeout(() => showChoices(), 200);
+    return;
+  }
+  if (pendingHiddenChapter) {
+    openHiddenChapterFromResult();
+    return;
+  }
+  if (pendingNext) goNext();
+}
+
+function goNext() {
+  pendingNext = null;
+  stopAllSfx();
+  currentScene++;
+  buildScene(currentScene, () => setTimeout(playOpening, 350));
+}
+
+function fitKitchenScale(scene) {
+  const box = new THREE.Box3().setFromObject(scene);
+  const sz = box.getSize(new THREE.Vector3());
+  const maxDim = Math.max(sz.x, sz.y, sz.z);
+  if (maxDim < 0.05) return KITCHEN_CFG.scale;
+  return (KITCHEN_CFG.targetSize / maxDim) * KITCHEN_CFG.scale;
+}
+
+function buildKitchenFallback() {
+  const g = new THREE.Group();
+  g.name = 'KitchenFallback';
+  const mat = new THREE.MeshStandardMaterial({ color: 0x4a3828, roughness: 0.95 });
+  const floor = new THREE.Mesh(new THREE.BoxGeometry(5, 0.12, 4.5), mat);
+  g.add(floor);
+  const stove = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.95, 0.85), new THREE.MeshStandardMaterial({ color: 0x333333 }));
+  stove.position.set(0, 0.48, -1.4); g.add(stove);
+  add(g);
+  return new THREE.Box3().setFromObject(g);
+}
+
+function buildKitchenEnclosureWalls(roomBox) {
+  const g = new THREE.Group();
+  g.name = 'KitchenEnclosure';
+  const ctr = roomBox.getCenter(new THREE.Vector3());
+  const sz = roomBox.getSize(new THREE.Vector3());
+  const wallMat = new THREE.MeshStandardMaterial({ color: 0x4a3828, roughness: 0.96 });
+  const ceilMat = new THREE.MeshStandardMaterial({ color: 0x3a3028, roughness: 0.98 });
+  const T = 0.14;
+  const pad = 0.06;
+  const h = sz.y * 1.0;
+  const midY = roomBox.min.y + h * 0.5;
+  const wX = sz.x + pad * 2;
+  const wZ = sz.z + pad * 2;
+
+  if (KITCHEN_MODEL_WALL !== 'minX') {
+    const left = new THREE.Mesh(new THREE.BoxGeometry(T, h, wZ), wallMat);
+    left.position.set(roomBox.min.x - T * 0.5 - pad * 0.3, midY, ctr.z);
+    left.castShadow = true; left.receiveShadow = true;
+    g.add(left);
+  }
+  if (KITCHEN_MODEL_WALL !== 'maxX') {
+    const right = new THREE.Mesh(new THREE.BoxGeometry(T, h, wZ), wallMat);
+    right.position.set(roomBox.max.x + T * 0.5 + pad * 0.3, midY, ctr.z);
+    right.castShadow = true; right.receiveShadow = true;
+    g.add(right);
+  }
+  if (KITCHEN_MODEL_WALL !== 'minZ') {
+    const back = new THREE.Mesh(new THREE.BoxGeometry(wX, h, T), wallMat);
+    back.position.set(ctr.x, midY, roomBox.min.z - T * 0.5 - pad * 0.3);
+    back.castShadow = true; back.receiveShadow = true;
+    g.add(back);
+  }
+  if (KITCHEN_MODEL_WALL !== 'maxZ') {
+    const front = new THREE.Mesh(new THREE.BoxGeometry(wX, h, T), wallMat);
+    front.position.set(ctr.x, midY, roomBox.max.z + T * 0.5 + pad * 0.3);
+    front.castShadow = true; front.receiveShadow = true;
+    g.add(front);
+  }
+
+  const ceiling = new THREE.Mesh(new THREE.BoxGeometry(wX, 0.1, wZ), ceilMat);
+  ceiling.position.set(ctr.x, roomBox.max.y + 0.02, ctr.z);
+  ceiling.receiveShadow = true;
+  g.add(ceiling);
+
+  add(g);
+  console.log('✅ 厨房围合（保留模型墙：' + KITCHEN_MODEL_WALL + '）');
+}
+
+function placeKitchenLights(roomBox) {
+  if (stoveLight) scene3d.remove(stoveLight);
+  const ctr = roomBox.getCenter(new THREE.Vector3());
+  const sz = roomBox.getSize(new THREE.Vector3());
+
+  add(new THREE.AmbientLight(0x3a2818, 0.38));
+  add(new THREE.HemisphereLight(0xffeedd, 0x3a2a18, 0.32));
+
+  stoveLight = new THREE.PointLight(0xff6622, 1.4, sz.length() * 1.2);
+  stoveLight.position.set(ctr.x, roomBox.min.y + sz.y * 0.45, roomBox.min.z + sz.z * 0.55);
+  add(stoveLight);
+
+  const fill = new THREE.PointLight(0xffcc99, 0.65, sz.length() * 1.1);
+  fill.position.set(ctr.x, roomBox.min.y + sz.y * 0.72, ctr.z);
+  add(fill);
+}
+
+function getKitchenCameraTarget(roomBox) {
+  const mother = actors.mother;
+  const sz = roomBox.getSize(new THREE.Vector3());
+  if (!mother) return null;
+  return {
+    lookX: mother.x,
+    lookY: mother.headY * KITCHEN_CAM.lookFace,
+    lookZ: mother.z,
+    eyeY: mother.headY * KITCHEN_CAM.eyeRel,
+    camZ: mother.z + sz.z * KITCHEN_CAM.distZ,
+  };
+}
+
+function applyKitchenCamera(roomBox) {
+  const t = getKitchenCameraTarget(roomBox);
+  if (!t) return;
+  const sz = roomBox.getSize(new THREE.Vector3());
+
+  camera.fov = KITCHEN_CAM.fov;
+  camera.near = 0.05;
+  camera.far = Math.max(sz.length() * 6, 80);
+  camera.updateProjectionMatrix();
+  camera.position.set(t.lookX, t.eyeY, t.camZ);
+  camera.lookAt(t.lookX, t.lookY, t.lookZ);
+
+  SCENES[1].camera = { pos: [t.lookX, t.eyeY, t.camZ], look: [t.lookX, t.lookY, t.lookZ] };
+  console.log('📷 场景一 · 屋内面对面', SCENES[1].camera);
+}
+
+function placePopo(popoScene, roomBox) {
+  const root = new THREE.Group();
+  root.name = 'PopoMain';
+  const m = popoScene.clone(true);
+  m.traverse(node => { node.rotation.set(0, 0, 0); });
+  const rawBox = new THREE.Box3().setFromObject(m);
+  const h = rawBox.getSize(new THREE.Vector3()).y;
+  const kitchenH = roomBox.getSize(new THREE.Vector3()).y;
+  const targetH = kitchenH * POPO_CFG.heightRatio;
+  const sc = targetH / Math.max(h, 0.01);
+  m.scale.set(sc, sc, sc);
+  root.add(m);
+  root.rotation.set(0, POPO_CFG.rotY, 0);
+  root.updateMatrixWorld(true);
+
+  const pb = new THREE.Box3().setFromObject(root);
+  const ctr = roomBox.getCenter(new THREE.Vector3());
+  const sz = roomBox.getSize(new THREE.Vector3());
+  root.position.set(
+    ctr.x + sz.x * POPO_CFG.offsetX,
+    roomBox.min.y - pb.min.y - POPO_CFG.floorSink,
+    roomBox.min.z + sz.z * POPO_CFG.depthZ
+  );
+  root.updateMatrixWorld(true);
+
+  fixMaterials(m);
+  m.traverse(c => { if (c.isMesh) { c.castShadow = true; c.receiveShadow = true; } });
+  add(root);
+
+  const wb = new THREE.Box3().setFromObject(root);
+  registerActor('mother', {
+    x: (wb.min.x + wb.max.x) / 2,
+    z: (wb.min.z + wb.max.z) / 2,
+    headY: wb.max.y - 0.04,
+  });
+  console.log('✅ 婆婆已摆放（厨房内，身高约为厨房' + Math.round(POPO_CFG.heightRatio * 100) + '%）', actors.mother);
+}
+
+function placeKitchenModel(gltfScene) {
+  const root = new THREE.Group();
+  root.name = 'KitchenMain';
+  const m = gltfScene;
+  const sc = fitKitchenScale(m);
+  m.rotation.y = KITCHEN_CFG.rotY;
+  m.scale.set(sc, sc, sc);
+  root.add(m);
+  root.updateMatrixWorld(true);
+
+  const rawBox = new THREE.Box3().setFromObject(root);
+  const rawCtr = rawBox.getCenter(new THREE.Vector3());
+  root.position.set(-rawCtr.x, -rawBox.min.y, -rawCtr.z);
+  root.updateMatrixWorld(true);
+
+  fixMaterials(m);
+  m.traverse(c => { if (c.isMesh) { c.castShadow = true; c.receiveShadow = true; } });
+  add(root);
+  return new THREE.Box3().setFromObject(root);
+}
+
+function loadKitchenScene(onReady) {
+  setSceneLoading(true, '加载场景一 · 农家厨房…');
+  scene3d.background = new THREE.Color(0x120e0a);
+  scene3d.fog = new THREE.FogExp2(0x1a120c, 0.012);
+
+  let kitchenBox = null;
+
+  const finish = (usedGlb) => {
+    placeKitchenLights(kitchenBox);
+    applyKitchenCamera(kitchenBox);
+    setSceneLoading(false);
+    console.log(usedGlb ? '✅ 场景一厨房内景就绪' : '⚠️ 场景一 使用备用厨房');
+    if (onReady) onReady(usedGlb);
+  };
+
+  const loadPopo = (roomBox, kitchenUsed) => {
+    gltfLoader.load(MODEL_FILES.popo, (gltf) => {
+      placePopo(gltf.scene, roomBox);
+      finish(kitchenUsed);
+    }, undefined, (err) => {
+      console.warn('⚠️ 婆婆 glb 未找到', MODEL_FILES.popo, err);
+      finish(kitchenUsed);
+    });
+  };
+
+  gltfLoader.load(MODEL_FILES.kitchen, (gltf) => {
+    kitchenBox = placeKitchenModel(gltf.scene);
+    buildKitchenEnclosureWalls(kitchenBox);
+    console.log('✅ 厨房建筑已加载', MODEL_FILES.kitchen, kitchenBox.getSize(new THREE.Vector3()));
+    loadPopo(kitchenBox, true);
+  }, (xhr) => {
+    if (xhr.total) console.log('加载厨房…', Math.round(xhr.loaded / xhr.total * 100) + '%');
+  }, (err) => {
+    console.warn('⚠️ 厨房 glb 未找到，使用备用场景', MODEL_FILES.kitchen, err);
+    kitchenBox = buildKitchenFallback();
+    buildKitchenEnclosureWalls(kitchenBox);
+    loadPopo(kitchenBox, false);
+  });
+}
+
+function buildCaveProcedural() {
+  const g = new THREE.Group();
+  g.name = 'CaveFallback';
+  const rock = new THREE.MeshStandardMaterial({ color: 0x3a3530, roughness: 1 });
+  const floor = new THREE.Mesh(new THREE.BoxGeometry(5, 0.2, 5), rock);
+  g.add(floor);
+  const table = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.15, 0.8), new THREE.MeshStandardMaterial({ color: 0x4a4035 }));
+  table.position.set(0, 0.5, 0); g.add(table);
+  const radio = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.2, 0.25), new THREE.MeshStandardMaterial({ color: 0x2a2a2a, metalness: 0.3 }));
+  radio.position.set(0, 0.65, 0.1); g.add(radio);
+  add(g);
+}
+
+function fixMaterials(obj) {
+  obj.traverse(c => {
+    if (!c.isMesh) return;
+    c.castShadow = true;
+    c.receiveShadow = true;
+    const mats = Array.isArray(c.material) ? c.material : [c.material];
+    mats.forEach(mat => {
+      if (!mat) return;
+      mat.side = THREE.DoubleSide;
+      if (mat.map) mat.map.encoding = THREE.sRGBEncoding;
+      if (mat.emissive) { mat.emissive.setRGB(0, 0, 0); mat.emissiveIntensity = 0; }
+      mat.needsUpdate = true;
+    });
+  });
+}
+
+function fitCaveScale(scene) {
+  const box = new THREE.Box3().setFromObject(scene);
+  const sz = box.getSize(new THREE.Vector3());
+  const maxDim = Math.max(sz.x, sz.y, sz.z);
+  if (maxDim < 0.05) return CAVE_CFG.scale;
+  return (CAVE_CFG.targetSize / maxDim) * CAVE_CFG.scale;
+}
+
+function placeCaveLights(roomBox, sceneNum) {
+  patrolLights.forEach(l => scene3d.remove(l));
+  patrolLights.length = 0;
+  if (lampLight) scene3d.remove(lampLight);
+
+  const ctr = roomBox.getCenter(new THREE.Vector3());
+  const sz = roomBox.getSize(new THREE.Vector3());
+
+  lampLight = new THREE.PointLight(sceneNum === 3 ? 0xffaa66 : 0xff8833, sceneNum === 3 ? 0.85 : 1.1, sz.length() * 0.9);
+  lampLight.position.set(ctr.x, roomBox.min.y + sz.y * 0.55, ctr.z);
+  add(lampLight);
+
+  const fill = new THREE.PointLight(0x334455, 0.18, sz.length());
+  fill.position.set(ctr.x - sz.x * 0.2, ctr.y, ctr.z + sz.z * 0.15);
+  add(fill);
+
+  if (sceneNum === 2) {
+    [[-0.35, 0.12], [0.0, -0.2], [0.4, 0.05]].forEach(([ox, oz], i) => {
+      const spot = new THREE.SpotLight(0xffffff, 0.55, sz.length() * 2.2, 0.45, 0.5);
+      spot.position.set(
+        ctr.x + sz.x * ox,
+        roomBox.min.y + sz.y * 0.25,
+        roomBox.max.z + sz.z * (0.35 + oz)
+      );
+      spot.target.position.set(ctr.x, ctr.y * 0.9, ctr.z - sz.z * 0.1);
+      add(spot);
+      add(spot.target);
+      spot.userData = { phase: i * 2.1, baseX: spot.position.x, baseZ: spot.position.z };
+      patrolLights.push(spot);
+    });
+  }
+}
+
+function applyCaveCamera(roomBox, sceneNum) {
+  const ctr = roomBox.getCenter(new THREE.Vector3());
+  const sz = roomBox.getSize(new THREE.Vector3());
+  const eyeY = roomBox.min.y + sz.y * CAVE_CAM.eyeY;
+  const camZ = roomBox.max.z + sz.z * CAVE_CAM.backZ;
+  const lookY = roomBox.min.y + sz.y * CAVE_CAM.lookY;
+  const lookZ = roomBox.min.z + sz.z * CAVE_CAM.lookZ;
+
+  camera.fov = CAVE_CAM.fov;
+  camera.near = 0.05;
+  camera.far = Math.max(sz.length() * 6, 80);
+  camera.updateProjectionMatrix();
+  camera.position.set(ctr.x, eyeY, camZ);
+  camera.lookAt(ctr.x, lookY, lookZ);
+
+  SCENES[sceneNum].camera = {
+    pos: [ctr.x, eyeY, camZ],
+    look: [ctr.x, lookY, lookZ],
+  };
+  console.log('📷 山洞场景' + sceneNum + ' 全景相机', SCENES[sceneNum].camera);
+}
+
+function loadCaveScene(sceneNum, onReady) {
+  setSceneLoading(true, '加载场景' + sceneNum + ' · 苏静洞…');
+  scene3d.background = new THREE.Color(sceneNum === 3 ? 0x030305 : 0x050403);
+  scene3d.fog = new THREE.FogExp2(sceneNum === 3 ? 0x080810 : 0x0a0806, sceneNum === 2 ? 0.018 : 0.016);
+  add(new THREE.AmbientLight(sceneNum === 3 ? 0x2a2830 : 0x2a2018, sceneNum === 3 ? 0.35 : 0.4));
+
+  const finish = (roomBox, usedGlb) => {
+    caveLoaded = usedGlb;
+    placeCaveLights(roomBox, sceneNum);
+    applyCaveCamera(roomBox, sceneNum);
+    setSceneLoading(false);
+    console.log(usedGlb ? '✅ 场景' + sceneNum + ' GLB 山洞就绪' : '⚠️ 场景' + sceneNum + ' 使用备用山洞');
+    if (onReady) onReady(usedGlb);
+  };
+
+  gltfLoader.load(MODEL_FILES.cave, (gltf) => {
+    const root = new THREE.Group();
+    root.name = 'SujingCaveMain';
+    const m = gltf.scene;
+    const sc = fitCaveScale(m);
+    m.rotation.y = CAVE_CFG.rotY;
+    m.scale.set(sc, sc, sc);
+    root.add(m);
+    root.updateMatrixWorld(true);
+
+    const rawBox = new THREE.Box3().setFromObject(root);
+    const rawCtr = rawBox.getCenter(new THREE.Vector3());
+    root.position.set(-rawCtr.x, -rawBox.min.y, -rawCtr.z);
+    root.updateMatrixWorld(true);
+
+    fixMaterials(m);
+    add(root);
+
+    const roomBox = new THREE.Box3().setFromObject(root);
+    console.log('✅ 山洞模型已加载', MODEL_FILES.cave, {
+      size: roomBox.getSize(new THREE.Vector3()),
+      scale: sc.toFixed(3),
+    });
+    finish(roomBox, true);
+  }, (xhr) => {
+    if (xhr.total) {
+      const pct = Math.round(xhr.loaded / xhr.total * 100);
+      console.log('加载山洞…', pct + '%');
+    }
+  }, (err) => {
+    console.warn('⚠️ 山洞 glb 未找到，使用程序场景', MODEL_FILES.cave, err);
+    buildCaveProcedural();
+    const roomBox = new THREE.Box3(
+      new THREE.Vector3(-2.5, 0, -2.5),
+      new THREE.Vector3(2.5, 2.2, 2.5)
+    );
+    finish(roomBox, false);
+  });
+}
+
+function buildCaveScene(sceneNum, onReady) {
+  loadCaveScene(sceneNum, onReady);
+}
+
+function buildScene2(onReady) {
+  console.log('═══ 构建场景二 · 深夜发报 ═══');
+  buildCaveScene(2, onReady);
+}
+
+function buildScene3(onReady) {
+  console.log('═══ 构建场景三 · 六年坚守 ═══');
+  buildCaveScene(3, onReady);
+}
+
+function buildScene1(onReady) {
+  console.log('═══ 构建场景一 · 假夫妻 ═══');
+  loadKitchenScene(onReady);
+}
+
+function buildScene(n, onReady) {
+  sceneBuilding = true;
+  clearScene();
+  caveLoaded = false;
+  currentScene = n;
+  updateUI();
+
+  const done = () => {
+    sceneBuilding = false;
+    sceneReady = true;
+    if (onReady) onReady();
+  };
+
+  if (n === 1) buildScene1(done);
+  else if (n === 2) buildScene2(done);
+  else if (n === 3) buildScene3(done);
+  else buildScene1(done);
+}
+
+function initThree() {
+  const c = document.getElementById('canvas-container');
+  renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.shadowMap.enabled = true;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.15;
+  c.appendChild(renderer.domElement);
+  scene3d = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.05, 200);
+  window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+}
+
+function render() {
+  requestAnimationFrame(render);
+  animTick += 0.016;
+  if (lampLight && currentScene >= 2) {
+    lampLight.intensity = (currentScene === 2 ? 1.05 : 0.82) + Math.sin(animTick * 3.2) * 0.12;
+  }
+  if (stoveLight && currentScene === 1) {
+    stoveLight.intensity = 1.25 + Math.sin(animTick * 2.8) * 0.18;
+  }
+  patrolLights.forEach(sp => {
+    const d = sp.userData;
+    sp.position.x = d.baseX + Math.sin(animTick * 0.9 + d.phase) * 0.45;
+    sp.position.z = d.baseZ + Math.cos(animTick * 0.7 + d.phase) * 0.35;
+    sp.intensity = 0.35 + Math.abs(Math.sin(animTick * 1.4 + d.phase)) * 0.35;
+  });
+  updateBubblePosition();
+  renderer.render(scene3d, camera);
+}
+
+window.addEventListener('load', () => {
+  initThree();
+  render();
+  document.body.addEventListener('click', () => initAudio(), { once: true });
+  const params = new URLSearchParams(location.search);
+  const startScene = parseInt(params.get('scene'), 10);
+  const first = (startScene >= 1 && startScene <= 3) ? startScene : 1;
+
+  if (first === 1) {
+    currentScene = 1;
+    updateUI();
+    playPreScene1Intro(startScene1AfterIntro);
+  } else {
+    scene1IntroDone = true;
+    buildScene(first, () => setTimeout(playOpening, 500));
+  }
+});
+</script>
+</body>
+</html>
