@@ -1,0 +1,1977 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>涧沟村 · 红色元宇宙互动</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { overflow: hidden; background: #1a2030; font-family: "PingFang SC", "Microsoft YaHei", sans-serif; color: #fff; }
+    #canvas-container { position: fixed; inset: 0; z-index: 0; }
+    .top-tag { position: fixed; top: 14px; left: 14px; z-index: 10; background: rgba(196,30,58,0.8); padding: 5px 12px; border-radius: 14px; font-size: 11px; }
+    .audio-btn { position: fixed; top: 14px; right: 14px; z-index: 10; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.3); color: #fff; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; font-size: 16px; }
+    .mini-panel { position: fixed; bottom: 16px; right: 16px; z-index: 20; width: 280px; max-height: 38vh; background: rgba(10,8,6,0.82); border: 1px solid rgba(255,255,255,0.15); border-radius: 12px; padding: 12px 14px; overflow-y: auto; backdrop-filter: blur(10px); }
+    .mini-year { font-size: 10px; color: #C41E3A; margin-bottom: 4px; }
+    .mini-title { font-size: 13px; font-weight: bold; color: #FFD700; margin-bottom: 6px; }
+    .mini-dialogue { font-size: 11px; line-height: 1.5; color: #FFE4B5; border-left: 2px solid #C41E3A; padding-left: 8px; margin-bottom: 8px; font-style: italic; }
+    .mini-choices { display: flex; flex-direction: column; gap: 5px; }
+    .mini-btn { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.18); color: #eee; padding: 6px 10px; border-radius: 6px; cursor: pointer; text-align: left; font-size: 11px; line-height: 1.4; }
+    .mini-btn:hover { background: rgba(196,30,58,0.45); }
+    .mini-btn .opt { color: #FFD700; font-weight: bold; margin-right: 4px; }
+    .result-popup { position: fixed; bottom: 16px; right: 16px; z-index: 30; width: 260px; display: none; background: rgba(20,12,8,0.95); border: 2px solid #C41E3A; border-radius: 12px; padding: 14px; text-align: center; }
+    .result-popup.show { display: block; }
+    .result-popup.success { border-color: #FFD700; }
+    .result-popup.badge-together { z-index: 210; }
+    .result-icon { font-size: 26px; margin-bottom: 4px; }
+    .result-title { font-size: 13px; font-weight: bold; margin-bottom: 4px; }
+    .result-desc { font-size: 11px; color: #aaa; line-height: 1.5; margin-bottom: 8px; }
+    .result-close { background: #C41E3A; color: #fff; border: none; padding: 5px 18px; border-radius: 12px; font-size: 11px; cursor: pointer; }
+    #loading { position: fixed; inset: 0; z-index: 100; background: #1a2030; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; }
+    .loading-title { font-size: 18px; color: #C41E3A; }
+    .spinner { width: 30px; height: 30px; border: 3px solid rgba(196,30,58,0.3); border-top-color: #C41E3A; border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #bubble-layer { position: fixed; inset: 0; z-index: 25; pointer-events: none; overflow: hidden; }
+    .speech-bubble {
+      position: absolute; transform: translate(-50%, -100%);
+      max-width: 240px; min-width: 120px; padding: 8px 12px;
+      background: rgba(255,252,245,0.98); color: #1a1a1a;
+      border: 2px solid #333; border-radius: 14px;
+      font-size: 13px; line-height: 1.5; font-weight: 500;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.28);
+      opacity: 0; transition: opacity 0.25s;
+      z-index: 16;
+    }
+    .speech-bubble.show { opacity: 1; }
+    .speech-bubble::after {
+      content: ''; position: absolute; bottom: -10px; left: 50%; transform: translateX(-50%);
+      border: 10px solid transparent; border-top-color: #333;
+    }
+    .speech-bubble .speaker-name { font-size: 10px; color: #C41E3A; font-weight: bold; margin-bottom: 4px; }
+    .speech-bubble .bubble-text { color: #1a1a1a; font-size: 13px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
+    .narration-bar {
+      position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
+      z-index: 18; max-width: 520px; width: 90%;
+      background: rgba(8,10,18,0.78); border: 1px solid rgba(255,215,0,0.35);
+      border-radius: 10px; padding: 10px 16px; font-size: 12px; line-height: 1.55;
+      color: #d8e0f0; font-style: italic; display: none;
+    }
+    .narration-bar.show { display: block; }
+    /* 选项弹窗：对话结束后才出现 */
+    .choice-overlay {
+      position: fixed; inset: 0; z-index: 40;
+      background: rgba(0,0,0,0.55); backdrop-filter: blur(4px);
+      display: none; align-items: center; justify-content: center;
+    }
+    .choice-overlay.show { display: flex; }
+    .choice-modal {
+      width: min(420px, 92vw);
+      background: linear-gradient(160deg, rgba(22,14,10,0.97), rgba(12,10,8,0.98));
+      border: 2px solid #C41E3A; border-radius: 16px;
+      padding: 22px 24px; box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+      animation: popIn 0.35s ease;
+    }
+    @keyframes popIn { from { opacity:0; transform:scale(0.92) translateY(12px); } to { opacity:1; transform:scale(1) translateY(0); } }
+    .choice-modal h3 { font-size: 15px; color: #FFD700; margin-bottom: 6px; }
+    .choice-modal .prompt { font-size: 12px; color: #aaa; margin-bottom: 14px; line-height: 1.5; }
+    .choice-modal-btns { display: flex; flex-direction: column; gap: 8px; }
+    .choice-modal-btn {
+      background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.2);
+      color: #eee; padding: 11px 14px; border-radius: 10px; cursor: pointer;
+      text-align: left; font-size: 13px; line-height: 1.45; transition: background 0.2s;
+    }
+    .choice-modal-btn:hover { background: rgba(196,30,58,0.5); border-color: #C41E3A; }
+    .choice-modal-btn .opt { color: #FFD700; font-weight: bold; margin-right: 6px; }
+    .scene-nav {
+      position: fixed; top: 14px; left: 50%; transform: translateX(-50%); z-index: 12;
+      display: flex; gap: 6px; background: rgba(10,8,6,0.75); padding: 5px 8px;
+      border-radius: 20px; border: 1px solid rgba(255,255,255,0.15); backdrop-filter: blur(8px);
+    }
+    .scene-nav button {
+      background: transparent; border: none; color: #bbb; font-size: 11px;
+      padding: 5px 12px; border-radius: 14px; cursor: pointer; white-space: nowrap;
+    }
+    .scene-nav button.active { background: #C41E3A; color: #fff; font-weight: bold; }
+    .scene-nav button:hover:not(.active) { color: #fff; background: rgba(255,255,255,0.1); }
+    .intro-overlay {
+      position: fixed; inset: 0; z-index: 90;
+      background: linear-gradient(165deg, rgba(12,8,6,0.97), rgba(6,8,14,0.98));
+      display: none; align-items: center; justify-content: center;
+      padding: 28px 20px;
+    }
+    .intro-overlay.show { display: flex; }
+    .intro-panel {
+      max-width: 680px; width: 100%; max-height: 88vh; overflow-y: auto;
+      background: rgba(18,12,8,0.55); border: 1px solid rgba(255,215,0,0.28);
+      border-radius: 16px; padding: 28px 32px;
+      box-shadow: 0 16px 48px rgba(0,0,0,0.45);
+    }
+    .intro-panel h2 {
+      font-size: 20px; color: #FFD700; text-align: center;
+      margin-bottom: 6px; letter-spacing: 0.12em;
+    }
+    .intro-panel .intro-sub {
+      font-size: 11px; color: #C41E3A; text-align: center; margin-bottom: 20px;
+    }
+    #introText {
+      font-size: 15px; line-height: 1.9; color: #e8e0d4;
+      min-height: 3em; text-align: justify;
+    }
+    #introText .intro-cursor {
+      display: inline-block; width: 2px; height: 1em;
+      background: #FFD700; margin-left: 2px; vertical-align: text-bottom;
+      animation: introBlink 0.9s step-end infinite;
+    }
+    @keyframes introBlink { 50% { opacity: 0; } }
+    .intro-hint { font-size: 11px; color: #777; text-align: center; margin-top: 18px; }
+    .hidden-badge-tag {
+      display: inline-block; font-size: 10px; color: #FFD700;
+      border: 1px solid rgba(255,215,0,0.45); border-radius: 10px;
+      padding: 3px 10px; margin-bottom: 14px;
+    }
+    .memoir-section { font-size: 14px; color: #C41E3A; font-weight: bold; margin: 16px 0 8px; }
+    #hiddenChapterText {
+      font-size: 15px; line-height: 1.9; color: #e8e0d4;
+      min-height: 42vh; text-align: justify;
+      white-space: pre-wrap; word-break: break-word;
+    }
+    #hiddenChapterText .intro-cursor {
+      display: inline-block; width: 2px; height: 1em;
+      background: #FFD700; margin-left: 2px; vertical-align: text-bottom;
+      animation: introBlink 0.9s step-end infinite;
+    }
+    .story-skip-btn {
+      display: block; margin: 16px auto 0; background: transparent;
+      border: 1px solid rgba(255,255,255,0.25); color: #aaa;
+      padding: 6px 16px; border-radius: 12px; font-size: 11px; cursor: pointer;
+    }
+    .story-skip-btn:hover { color: #fff; border-color: rgba(255,255,255,0.5); }
+  </style>
+  <link rel="stylesheet" href="assets/badge-reveal.css" />
+</head>
+<body>
+
+<div id="loading">
+  <div class="loading-title">涧沟村 · 红色元宇宙</div>
+  <div class="spinner"></div>
+  <div style="font-size:12px;color:#888;">加载中…</div>
+</div>
+
+<div id="canvas-container"></div>
+<div id="bubble-layer"></div>
+<div class="intro-overlay" id="introOverlay">
+  <div class="intro-panel">
+    <h2>平西情报联络站</h2>
+    <div class="intro-sub">涧沟村 · 关帝庙旧址</div>
+    <p id="introText"></p>
+    <div class="intro-hint" id="introHint">历史讲述中…</div>
+    <button type="button" class="story-skip-btn" id="introSkip" onclick="skipIntroReading()">跳过朗读</button>
+  </div>
+</div>
+<div class="intro-overlay" id="hiddenChapterOverlay">
+  <div class="intro-panel">
+    <div class="hidden-badge-tag">🔓 隐藏篇章已解锁 · 情报尖兵</div>
+    <h2>《林迈可回忆录》节选</h2>
+    <div class="intro-sub">Michael Lindsay · 1941—1983</div>
+    <div id="hiddenChapterText" aria-live="polite"></div>
+    <div class="intro-hint" id="hiddenChapterHint">回忆录逐字呈现中，请阅读…</div>
+    <button type="button" class="story-skip-btn" id="hiddenChapterSkip" onclick="skipHiddenChapter()">跳过朗读</button>
+  </div>
+</div>
+<div class="narration-bar" id="narrationBar"></div>
+<div class="top-tag" id="topTag">🌐 场景一 · 暗号对接</div>
+<nav class="scene-nav">
+  <button id="nav1" class="active" onclick="switchScene(1)">场景一·暗号</button>
+  <button id="nav2" onclick="switchScene(2)">场景二·密报</button>
+  <button id="nav3" onclick="switchScene(3)">场景三·护送</button>
+</nav>
+<button class="audio-btn" id="audioBtn" onclick="toggleAudio()">🔊</button>
+
+<div class="mini-panel">
+  <div class="mini-year" id="miniYear">1943年秋</div>
+  <div class="mini-title" id="miniTitle">福兴商号</div>
+  <div class="mini-dialogue" id="miniDialogue">等待剧情…</div>
+</div>
+
+<div class="choice-overlay" id="choiceModal">
+  <div class="choice-modal">
+    <h3 id="choiceModalTitle">请选择</h3>
+    <div class="prompt" id="choiceModalPrompt"></div>
+    <div class="choice-modal-btns" id="choiceModalBtns"></div>
+  </div>
+</div>
+
+<div class="result-popup" id="resultPopup">
+  <div class="result-icon" id="resultIcon"></div>
+  <div class="result-title" id="resultTitle"></div>
+  <div class="result-desc" id="resultDesc"></div>
+  <button class="result-close" onclick="closeResult()">继续</button>
+</div>
+
+<script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
+<script src="https://unpkg.com/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+
+<script src="assets/badge-reveal.js"></script>
+<script>
+const MODEL_FILES = {
+  shop:       'models/fuxingshanghao.glb',
+  boss:       'models/laoban.glb',
+  liaison:    'models/dixialianluozhan.glb',
+  linmaike:   'models/linmaike.glb',
+  wife:       'models/linwife.glb',
+  handcart:   'models/handcar.glb',
+};
+
+const PATH_Y = 0.14;
+
+const INTRO_TEXT =
+  '平西情报联络站成立于1941年2月，位于涧沟村关帝庙旧址，是中共中央北方分局社会部在华北地区最早建立的情报联络机构。' +
+  '在抗日战争和解放战争近十年时间里，这个站的工作从未间断，经历了钟子云、刘景平、梁波、梁克四任站长。' +
+  '这里既是解放战争时期晋察冀野战军发动清风店战役的消息传递地，也是国际友人林迈可经此被安全护送至根据地的见证地，' +
+  '更是《潜伏》《地下尖兵》等文艺作品的故事发生地。聂荣臻元帅曾评价它“胜似雄兵十万”。' +
+  '在近十年时间里，约有100名工作人员在此工作，其中10人为革命壮烈牺牲，收发关键情报逾8000份。' +
+  '2009年，旧址改建为北京首个以情报战线为主题的展览馆，现为全国国家安全教育基地和北京市爱国主义教育基地。';
+
+const MEMOIR_TEXT =
+  '林迈可，英国贵族、牛津大学导师，1937年与白求恩同船来华，在燕京大学任教。' +
+  '1941年12月太平洋战争爆发后，在平西情报联络站交通员的护送下，经妙峰山古香道安全转移到平西抗日根据地。' +
+  '此后他担任八路军通讯部无线电技术顾问，为根据地改造电台、培训人才。' +
+  '林迈可在回忆中详细描述了他到根据地后的工作经历。' +
+  '关于改造电台。1942年到达晋察冀军区后，聂荣臻司令员任命我为通讯部技术顾问。' +
+  '我们的供应非常短缺，大部分教学工作只能从电学原理的第一个法则讲起。' +
+  '我们集中了晋察冀数学人才解出3个三次联立方程式，终于导出了超外差收音机中本机跟踪的公式。' +
+  '我的主要工作是用新设计改造所有无线电装置，让老机器变轻变小。' +
+  '木匠从农村来为我们做木箱，我们估算出天线输出功率约为20瓦。' +
+  '关于工作条件。除了我搞的微型机以外，所有的管子都用30S。' +
+  '当我们制造电子管插座时，在精确钻孔上遇到过困难。' +
+  '天黑以后在半支烛光的植物油灯下工作很不方便。但无论如何，我们并没有因为缺乏工具而停止不前。' +
+  '关于密码。1967年我在东京时，遇到一个曾从事对中国无线电信息监听的海军军官。' +
+  '他说国民党的密码非常拙劣，从1937年到1945年他们可以读出国民党机构用无线电发出的任何信息，' +
+  '而共产党的密码好得多，他们直到1941年还不能掌握破译。' +
+  '一年以后共产党又改成一套新密码，他们就从来没有破译过。' +
+  '重返中国。1983年我们再回中国时，肖克将军告诉我，国内战争中新式的晋察冀无线电电台工作得很好。' +
+  '我也非常高兴地知道，当时参加我们无线电工程学习班的一些人已经提升到电子通讯机构的领导岗位上来了。';
+
+const BADGE_KEY = 'jiankou_badges_v1';
+
+function returnToCheckin() {
+  const params = new URLSearchParams(window.location.search);
+  const spotId = params.get('spot') || '';
+  try {
+    if (window.parent && window.parent !== window) {
+      window.parent.postMessage({ type: 'jiankou-scene-complete', spotId: spotId }, '*');
+      return;
+    }
+  } catch (e) {}
+  try { sessionStorage.setItem('jiankouCompletedSpot', spotId); } catch (e) {}
+  window.location.href = new URL('../index.html', window.location.href).href;
+}
+
+// ★ 纪录片风 MP3 配音：把文件放进 audio/ 文件夹，有则优先播放，没有则退回浏览器朗读
+const NARRATION_MP3 = {
+  intro:  'audio/intro.mp3',   // 开场·平西情报联络站
+  scene1: 'audio/scene1.mp3',  // 场景一旁白
+  scene2: 'audio/scene2.mp3',  // 场景二旁白
+  scene3: 'audio/scene3.mp3',  // 场景三旁白
+  memoir: 'audio/memoir.mp3',  // 隐藏篇章·林迈可回忆录
+};
+
+const SCENES = {
+  1: {
+    tag: '场景一 · 暗号对接', year: '1943年秋', title: '福兴商号',
+    choiceTitle: '掌柜问你', choicePrompt: '「客官，您是要买红纸还是白纸？」<br>你记得上级交代过接头暗号 —— 对方问 “买什么纸”，须回答特定的下半句。',
+    narration: '1943年秋，你以“药材商贩”的身份第一次来到涧沟村。上级交代，到关帝庙旁的“福兴商号”杂货铺，与代号“红梅”的地下党员接头，取回一份紧急情报。你推开商号的木门，柜台后的掌柜看了你一眼，不紧不慢地问……',
+    dialogue: { speaker:'shopkeeper', name:'掌柜', text:'客官，您是要买红纸还是白纸？' },
+    dialogueInAudio: true,
+    dialogueAt: 19.68,
+    choices: [
+      { label:'A', text:'"我要红纸，家里办喜事用。"', success:false, result:'❌ 任务失败。错误解释：接头暗语的预设回应与“白纸”相关，选择红纸会被掌柜判定为身份不符，终止对接，同时暴露异常风险。请重试。', speaker:'shopkeeper', speech:'红纸卖完了，您去别处看看吧。' },
+      { label:'B', text:'"我买白纸，糊窗户用。"', success:true, result:'✅ 回答正确！你顺利拿到了藏在纸包夹层中的紧急情报，进入下一项任务。', speaker:'shopkeeper', speech:'这纸结实，糊了窗户，风透不进来。' },
+      { label:'C', text:'"我不买纸，我想打听个人。"', success:false, result:'❌ 任务失败。错误解释：本次接头的核心暗号围绕“买纸”展开，主动提出打听人不符合预设的对接逻辑，会引起掌柜的高度警惕，直接暴露身份。请重试。', speaker:'shopkeeper', speech:'打听人去别处，这里是杂货铺。' },
+    ],
+    camera: { pos:[0,1.72,4.85], look:[0,1.42,-0.95] },
+  },
+  2: {
+    tag: '场景二 · 三份密报', year: '1943年秋', title: '秘密联络站',
+    choiceTitle: '选择密报', choicePrompt: '交通员只能在凌晨出发，天亮前带走一份送往根据地 —— 其他两份只能暂时封存。<br>你选择传递哪一份？',
+    narration: '情报安全带回联络站。深夜，你蹲在煤油灯下整理当天收到的三份密报。交通员只能在凌晨出发，天亮前带走一份送往根据地 —— 其他两份只能暂时封存。',
+    dialogue: null,
+    choices: [
+      { label:'A', text:'敌军秋季扫荡兵力部署图', success:true, result:'✅ 回答正确！敌军三天后发动大规模扫荡的情报时效性最强，直接涉及数百名群众和游击队员的安危，优先级最高。情报连夜送抵晋察冀军区，部队与群众提前转移，无一伤亡。进入下一项任务。' },
+      { label:'B', text:'地下党组织名单', success:false, result:'❌ 任务未达最优。错误解释：地下党员转移情报虽重要，但敌军大规模扫荡的伤亡规模更大、时间更紧迫，应优先传递扫荡部署情报。请重试。' },
+      { label:'C', text:'北平城防工事图纸', success:false, result:'❌ 任务未达最优。错误解释：城防工事图纸时效性宽松，可延后封存保管，当前最紧急的是扫荡行动情报，需优先送出。请重试。' },
+    ],
+    camera: { pos:[0,1.35,2.8], look:[0,0.85,0] },
+  },
+  3: {
+    tag: '场景三 · 林迈可护送', year: '1941年12月', title: '妙峰山古香道',
+    choiceTitle: '林迈可问你', choicePrompt: '林迈可迟疑地看着你：“我要怎么相信你？”',
+    narration: '1941年12月，太平洋战争爆发。燕京大学英籍教授林迈可夫妇身陷险境，上级指示你务必接应他们安全通过妙峰山古香道，前往平西抗日根据地。你推着独轮车赶到约定的老槐树下，看到一位戴圆框眼镜的外国男子和一位女士神色不安地站着。你上前低声说：“教授，我是来接您上山的。”',
+    dialogue: { speaker:'linmaike', name:'林迈可', text:'我要怎么相信你？' },
+    dialogueInAudio: true,
+    dialogueAt: 27.08,
+    choices: [
+      { label:'A', text:'掏出一封信，盖有燕京大学某位教授的私章', success:false, result:'❌ 任务失败。错误解释：该信物并非预设的对接凭证，无法取得林迈可的信任，错过最佳转移时机。请重试。', speaker:'linmaike', speech:'我不认得这封信。' },
+      { label:'B', text:'直接说：“请跟我走，时间紧迫，路上再解释。”', success:false, result:'❌ 任务不符合工作规范。错误解释：地下工作接应必须以预设暗语验证身份，直接要求同行存在极高暴露风险，也无法获得接应对象的完全信任。请重试。', speaker:'linmaike', speech:'我怎么能随便跟你走？' },
+      { label:'C', text:'低声说出暗语：“林先生，您还记得在燕园教过的那个喜欢提问《论持久战》的学生吗？”', success:true, result:'✅ 回答正确！你用预设暗语成功取得林迈可的信任，顺利护送二人沿古香道安全抵达根据地。\n🎉 恭喜完成平西情报联络站全部任务，解锁专属徽章：情报尖兵', speaker:'linmaike', speech:'走吧。', badge:'情报尖兵' },
+    ],
+    camera: { pos:[0.15,2.0,4.5], look:[-0.5,1.0,-1.5] },
+  },
+};
+
+const PLACE_S3 = {
+  linmaike: { x:-1.35, z:-1.15, scale:1.5, rotY:0.55, yFix:0, groundTo:'path', label:'林迈可', headY:2.35 },
+  wife:     { x:-0.35, z:-1.55, scale:1.5, rotY:-0.25, yFix:0, groundTo:'path', label:'林夫人', headY:2.35 },
+  handcart: { x:0.2, z:-5.0, scale:2.8, rotY:Math.PI/2, rotX:0, yFix:0, liftExtra:0, groundTo:'path', label:'木车' },
+};
+
+let currentScene = 1;
+let sceneReady = false;
+let introPlayed = false;
+let introFinished = false;
+let introSkipRequested = false;
+let introTypeTimerId = null;
+let pendingNextScene = null;
+let pendingHiddenChapter = false;
+let pendingRetry = false;
+let hiddenChapterSkipRequested = false;
+let hiddenTypeTimerId = null;
+let autoAdvanceTimer = null;
+const AUTO_ADVANCE_MS = 2200;
+const AUTO_ADVANCE_AFTER_SPEECH_MS = 1400;
+
+function clearAutoAdvance() {
+  if (autoAdvanceTimer) {
+    clearTimeout(autoAdvanceTimer);
+    autoAdvanceTimer = null;
+  }
+}
+
+function advanceToHiddenChapter() {
+  clearAutoAdvance();
+  pendingHiddenChapter = false;
+  document.getElementById('resultPopup').classList.remove('show');
+  const btn = document.querySelector('#resultPopup .result-close');
+  if (btn) btn.textContent = '继续';
+  playHiddenChapter();
+}
+
+function scheduleAutoAdvanceToHidden(afterSpeech) {
+  clearAutoAdvance();
+  const delay = afterSpeech ? AUTO_ADVANCE_AFTER_SPEECH_MS : AUTO_ADVANCE_MS;
+  autoAdvanceTimer = setTimeout(advanceToHiddenChapter, delay);
+}
+
+function loadBadges() {
+  try {
+    return new Set(JSON.parse(localStorage.getItem(BADGE_KEY) || '[]'));
+  } catch (e) {
+    return new Set();
+  }
+}
+
+function saveBadges(set) {
+  localStorage.setItem(BADGE_KEY, JSON.stringify([...set]));
+}
+
+function awardBadge(name) {
+  if (!name) return;
+  const badges = loadBadges();
+  badges.add(name);
+  saveBadges(badges);
+}
+
+function hasBadge(name) {
+  return loadBadges().has(name);
+}
+
+let activeNarrationAudio = null;
+const narrationMp3Cache = {};
+let dialogueBubbleTimer = null;
+let dialogueBubblePollId = null;
+
+function clearDialogueBubbleTimer() {
+  if (dialogueBubbleTimer) {
+    clearTimeout(dialogueBubbleTimer);
+    dialogueBubbleTimer = null;
+  }
+  if (dialogueBubblePollId) {
+    clearInterval(dialogueBubblePollId);
+    dialogueBubblePollId = null;
+  }
+}
+
+function scheduleInAudioDialogueBubble(dialogue, dialogueAt) {
+  clearDialogueBubbleTimer();
+  if (!dialogue || !dialogue.speaker) return;
+  const key = dialogue.speaker;
+  let shown = false;
+  const show = () => {
+    if (shown) return;
+    shown = true;
+    clearDialogueBubbleTimer();
+    if (activeNarrationAudio) {
+      activeNarrationAudio.removeEventListener('timeupdate', onTime);
+    }
+    if (!actors[key]) return;
+    showSpeechBubble(key, dialogue.name, dialogue.text);
+    document.getElementById('miniDialogue').textContent = dialogue.name + '："' + dialogue.text + '"';
+  };
+  const onTime = () => {
+    const audio = activeNarrationAudio;
+    if (!audio) return;
+    if (audio.currentTime >= dialogueAt) show();
+  };
+  const audio = activeNarrationAudio;
+  const arm = () => {
+    const at = typeof dialogueAt === 'number' ? dialogueAt : NaN;
+    if (!isFinite(at) || at < 0) {
+      const dur = audio && isFinite(audio.duration) ? audio.duration : 0;
+      dialogueBubbleTimer = setTimeout(show, dur > 0 ? Math.max(500, dur * 1000 * 0.7) : 8000);
+      return;
+    }
+    audio.addEventListener('timeupdate', onTime);
+    // 跟音频时钟同步（墙钟 setTimeout 会因缓冲/起播延迟漂移）
+    dialogueBubblePollId = setInterval(() => {
+      const a = activeNarrationAudio;
+      if (a && a.currentTime >= at) show();
+    }, 30);
+  };
+  if (audio) {
+    if (isFinite(audio.duration) && audio.duration > 0) arm();
+    else audio.addEventListener('loadedmetadata', arm, { once: true });
+  }
+}
+
+function stopAllSpeech() {
+  window.speechSynthesis.cancel();
+  clearDialogueBubbleTimer();
+  if (activeNarrationAudio) {
+    activeNarrationAudio.pause();
+    activeNarrationAudio.currentTime = 0;
+    activeNarrationAudio = null;
+  }
+}
+
+function playDocAudio(key, textFallback, onEnd, opts = {}) {
+  if (!audioOn) { if (onEnd) onEnd(); return; }
+  const src = NARRATION_MP3[key];
+  if (!src) {
+    if (opts.long) speakLongText(textFallback, onEnd);
+    else tts(textFallback, 'narrator', onEnd);
+    return;
+  }
+
+  stopAllSpeech();
+  let audio = narrationMp3Cache[key];
+  if (!audio) {
+    audio = new Audio(src);
+    audio.preload = 'auto';
+    narrationMp3Cache[key] = audio;
+  } else {
+    audio.pause();
+    audio.currentTime = 0;
+  }
+  activeNarrationAudio = audio;
+
+  const cleanup = () => {
+    audio.removeEventListener('ended', onDone);
+    audio.removeEventListener('error', onFail);
+  };
+  const onDone = () => {
+    cleanup();
+    if (activeNarrationAudio === audio) activeNarrationAudio = null;
+    if (onEnd) onEnd();
+  };
+  const onFail = () => {
+    cleanup();
+    if (activeNarrationAudio === audio) activeNarrationAudio = null;
+    console.warn('⚠️ MP3 未找到或无法播放，改用浏览器朗读:', src);
+    if (opts.long) speakLongText(textFallback, onEnd);
+    else tts(textFallback, 'narrator', onEnd);
+  };
+
+  audio.addEventListener('ended', onDone);
+  audio.addEventListener('error', onFail);
+  audio.play().catch(onFail);
+}
+
+function speakLongText(text, onEnd) {
+  if (!audioOn || !text) { if (onEnd) onEnd(); return; }
+  window.speechSynthesis.cancel();
+  const parts = text.match(/[^。！？]+[。！？]?/g) || [text];
+  let i = 0;
+  const speakNext = () => {
+    if (hiddenChapterSkipRequested || i >= parts.length) {
+      if (onEnd) onEnd();
+      return;
+    }
+    const u = new SpeechSynthesisUtterance(parts[i++].trim());
+    u.lang = 'zh-CN';
+    u.voice = VOICES.narrator;
+    u.rate = 0.78;
+    u.pitch = 0.95;
+    u.onend = speakNext;
+    u.onerror = speakNext;
+    window.speechSynthesis.speak(u);
+  };
+  speakNext();
+}
+
+function clearHiddenTypewriter() {
+  if (hiddenTypeTimerId) {
+    clearTimeout(hiddenTypeTimerId);
+    hiddenTypeTimerId = null;
+  }
+}
+
+function typewriterHidden(el, text, charMs, onDone) {
+  clearHiddenTypewriter();
+  el.textContent = '';
+  let i = 0;
+  const cursor = document.createElement('span');
+  cursor.className = 'intro-cursor';
+  el.appendChild(cursor);
+
+  const tick = () => {
+    if (hiddenChapterSkipRequested) {
+      cursor.remove();
+      hiddenTypeTimerId = null;
+      return;
+    }
+    if (i >= text.length) {
+      cursor.remove();
+      hiddenTypeTimerId = null;
+      if (onDone) onDone();
+      return;
+    }
+    el.insertBefore(document.createTextNode(text[i]), cursor);
+    i += 1;
+    hiddenTypeTimerId = setTimeout(tick, charMs);
+  };
+  hiddenTypeTimerId = setTimeout(tick, charMs);
+}
+
+function skipHiddenChapter() {
+  // 立刻停止朗读，不再有任何声音，并返回打卡界面
+  hiddenChapterSkipRequested = true;
+  clearHiddenTypewriter();
+  stopAllSpeech();
+  window.speechSynthesis.cancel();
+  const overlay = document.getElementById('hiddenChapterOverlay');
+  if (overlay) overlay.classList.remove('show');
+  returnToCheckin();
+}
+
+function finishHiddenChapter() {
+  if (hiddenChapterSkipRequested) return;
+  clearHiddenTypewriter();
+  stopAllSpeech();
+  hiddenChapterSkipRequested = false;
+  document.getElementById('hiddenChapterOverlay').classList.remove('show');
+  document.getElementById('hiddenChapterText').textContent = '';
+  setIntroUiVisible(true);
+  document.getElementById('miniDialogue').textContent = '隐藏篇章《林迈可回忆录》已聆听完毕。';
+  setTimeout(returnToCheckin, 1200);
+}
+
+function playHiddenChapter() {
+  if (!hasBadge('情报尖兵')) return;
+  setIntroUiVisible(false);
+  hideChoiceModal();
+  hideSpeechBubble();
+  stopAllSpeech();
+  clearHiddenTypewriter();
+  hiddenChapterSkipRequested = false;
+
+  const overlay = document.getElementById('hiddenChapterOverlay');
+  const body = document.getElementById('hiddenChapterText');
+  const hint = document.getElementById('hiddenChapterHint');
+  overlay.classList.add('show');
+  hint.textContent = '回忆录逐字呈现中，请阅读…';
+
+  let twDone = false;
+  let speechDone = false;
+  const maybeFinish = () => {
+    if (hiddenChapterSkipRequested) return;
+    if (twDone && speechDone) {
+      hint.textContent = '篇章结束';
+      setTimeout(finishHiddenChapter, 1000);
+    }
+  };
+
+  typewriterHidden(body, MEMOIR_TEXT, 32, () => { twDone = true; maybeFinish(); });
+  playDocAudio('memoir', MEMOIR_TEXT, () => {
+    if (hiddenChapterSkipRequested) return;
+    speechDone = true;
+    maybeFinish();
+  }, { long: true });
+}
+
+function advanceToNextScene() {
+  clearAutoAdvance();
+  if (!pendingNextScene) return;
+  const next = pendingNextScene;
+  pendingNextScene = null;
+  switchScene(next);
+}
+
+function scheduleAutoAdvance(afterSpeech) {
+  clearAutoAdvance();
+  const delay = afterSpeech ? AUTO_ADVANCE_AFTER_SPEECH_MS : AUTO_ADVANCE_MS;
+  autoAdvanceTimer = setTimeout(advanceToNextScene, delay);
+}
+
+let renderer, scene3d, camera;
+let sceneObjects = [];
+const gltfLoader = new THREE.GLTFLoader();
+const actors = {};          // 角色锚点，用于对话气泡定位
+let activeBubble = null;
+let voiceReady = false;
+const _proj = new THREE.Vector3();
+
+// ═══ 语音：旁白 vs 人物分轨 ═══
+const VOICES = { narrator: null, male: null, female: null };
+
+function initVoices() {
+  const vs = window.speechSynthesis.getVoices().filter(v => v.lang.includes('zh'));
+  if (!vs.length) return;
+  VOICES.narrator = vs.find(v => /kangkang|yunjian|male|男/i.test(v.name)) || vs[0];
+  VOICES.male     = vs.find(v => /kangkang|yunjian|male|男/i.test(v.name)) || vs[0];
+  VOICES.female   = vs.find(v => /huihui|xiaoxiao|yaoyao|female|女/i.test(v.name)) || vs[1] || vs[0];
+  if (VOICES.male === VOICES.narrator && vs.length > 1) VOICES.male = vs[1];
+  voiceReady = true;
+}
+window.speechSynthesis.onvoiceschanged = initVoices;
+initVoices();
+
+function tts(text, role, onEnd) {
+  if (!audioOn || !text) { if (onEnd) onEnd(); return; }
+  window.speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = /[\u4e00-\u9fa5]/.test(text) ? 'zh-CN' : 'en-US';
+  if (role === 'narrator') {
+    u.voice = VOICES.narrator; u.rate = 0.82; u.pitch = 0.85;
+  } else if (role === 'female') {
+    u.voice = VOICES.female; u.rate = 0.9; u.pitch = 1.15;
+  } else {
+    u.voice = VOICES.male; u.rate = 0.92; u.pitch = 1.05;
+  }
+  u.onend = () => { if (onEnd) onEnd(); };
+  window.speechSynthesis.speak(u);
+}
+
+function speakNarration(text, onEnd, mp3Key) {
+  const bar = document.getElementById('narrationBar');
+  bar.textContent = text;
+  bar.classList.add('show');
+  hideSpeechBubble();
+  clearDialogueBubbleTimer();
+  const key = mp3Key || ('scene' + currentScene);
+  const s = getScene();
+  playDocAudio(key, text, () => {
+    setTimeout(() => bar.classList.remove('show'), 600);
+    if (onEnd) onEnd();
+  });
+  if (s.dialogue && s.dialogueInAudio) {
+    scheduleInAudioDialogueBubble(s.dialogue, s.dialogueAt);
+  }
+}
+
+function setIntroUiVisible(visible) {
+  const nav = document.querySelector('.scene-nav');
+  const tag = document.getElementById('topTag');
+  const panel = document.querySelector('.mini-panel');
+  if (nav) nav.style.visibility = visible ? '' : 'hidden';
+  if (tag) tag.style.visibility = visible ? '' : 'hidden';
+  if (panel) panel.style.visibility = visible ? '' : 'hidden';
+}
+
+function clearIntroTypewriter() {
+  if (introTypeTimerId) {
+    clearTimeout(introTypeTimerId);
+    introTypeTimerId = null;
+  }
+}
+
+function typewriterIntro(el, text, charMs, onDone) {
+  el.textContent = '';
+  let i = 0;
+  const cursor = document.createElement('span');
+  cursor.className = 'intro-cursor';
+  el.appendChild(cursor);
+
+  const tick = () => {
+    if (introSkipRequested) {
+      cursor.remove();
+      return;
+    }
+    if (i >= text.length) {
+      cursor.remove();
+      if (onDone) onDone();
+      return;
+    }
+    el.insertBefore(document.createTextNode(text[i]), cursor);
+    i++;
+    introTypeTimerId = setTimeout(tick, charMs);
+  };
+  introTypeTimerId = setTimeout(tick, charMs);
+}
+
+function finishIntro() {
+  if (introFinished) return;
+  introFinished = true;
+  introSkipRequested = true;
+  clearIntroTypewriter();
+  stopAllSpeech();
+  document.getElementById('introOverlay').classList.remove('show');
+  document.getElementById('introText').textContent = '';
+  setIntroUiVisible(true);
+  setTimeout(() => playOpeningSequence(), 500);
+}
+
+function skipIntroReading() {
+  if (introFinished) return;
+  finishIntro();
+}
+
+function playIntroSequence() {
+  introPlayed = true;
+  introFinished = false;
+  introSkipRequested = false;
+  setIntroUiVisible(false);
+  hideChoiceModal();
+  hideSpeechBubble();
+  stopAllSpeech();
+
+  const overlay = document.getElementById('introOverlay');
+  const body = document.getElementById('introText');
+  const hint = document.getElementById('introHint');
+  overlay.classList.add('show');
+  hint.textContent = '历史讲述中…';
+
+  let twDone = false;
+  let speechDone = false;
+  const maybeFinish = () => {
+    if (introSkipRequested || introFinished) return;
+    if (twDone && speechDone) {
+      hint.textContent = '即将进入场景…';
+      setTimeout(() => {
+        if (!introSkipRequested && !introFinished) finishIntro();
+      }, 800);
+    }
+  };
+
+  typewriterIntro(body, INTRO_TEXT, 42, () => { twDone = true; maybeFinish(); });
+  playDocAudio('intro', INTRO_TEXT, () => { speechDone = true; maybeFinish(); });
+}
+
+function speakCharacter(speakerKey, name, text, onEnd) {
+  document.getElementById('miniDialogue').textContent = name + '："' + text + '"';
+  const role = speakerKey === 'wife' ? 'female' : 'male';
+  showSpeechBubble(speakerKey, name, text);
+  tts(text, role, () => {
+    setTimeout(() => { hideSpeechBubble(); if (onEnd) onEnd(); }, 600);
+  });
+}
+
+function getScene() { return SCENES[currentScene]; }
+
+function updateSceneUI() {
+  const s = getScene();
+  document.getElementById('topTag').textContent = '🌐 ' + s.tag;
+  document.getElementById('miniYear').textContent = s.year;
+  document.getElementById('miniTitle').textContent = s.title;
+  document.getElementById('choiceModalTitle').textContent = s.choiceTitle;
+  document.getElementById('choiceModalPrompt').innerHTML = s.choicePrompt;
+  [1,2,3].forEach(i => document.getElementById('nav'+i).classList.toggle('active', i === currentScene));
+}
+
+function showChoiceModal() {
+  const s = getScene();
+  document.getElementById('choiceModalTitle').textContent = s.choiceTitle;
+  document.getElementById('choiceModalPrompt').innerHTML = s.choicePrompt;
+  const box = document.getElementById('choiceModalBtns');
+  box.innerHTML = '';
+  s.choices.forEach(c => {
+    const btn = document.createElement('button');
+    btn.className = 'choice-modal-btn';
+    btn.innerHTML = '<span class="opt">' + c.label + '.</span>' + c.text;
+    btn.onclick = () => handleChoice(c);
+    box.appendChild(btn);
+  });
+  document.getElementById('choiceModal').classList.add('show');
+}
+
+function hideChoiceModal() {
+  document.getElementById('choiceModal').classList.remove('show');
+}
+
+function playOpeningSequence() {
+  hideChoiceModal();
+  closeResult();
+  stopAllSpeech();
+  const s = getScene();
+  document.getElementById('miniDialogue').textContent = '…';
+  speakNarration(s.narration, () => {
+    if (s.dialogue && !s.dialogueInAudio) {
+      const d = s.dialogue;
+      speakCharacter(d.speaker, d.name, d.text, showChoiceModal);
+    } else {
+      if (s.dialogue && s.dialogueInAudio && s.dialogue.speaker) {
+        showSpeechBubble(s.dialogue.speaker, s.dialogue.name, s.dialogue.text);
+        document.getElementById('miniDialogue').textContent = s.dialogue.name + '："' + s.dialogue.text + '"';
+      }
+      showChoiceModal();
+    }
+  });
+}
+
+function switchScene(n) {
+  if (n === currentScene && sceneReady) return;
+  clearAutoAdvance();
+  pendingNextScene = null;
+  pendingHiddenChapter = false;
+  introSkipRequested = true;
+  introFinished = true;
+  clearIntroTypewriter();
+  hiddenChapterSkipRequested = true;
+  stopAllSpeech();
+  document.getElementById('introOverlay').classList.remove('show');
+  document.getElementById('hiddenChapterOverlay').classList.remove('show');
+  introPlayed = true;
+  setIntroUiVisible(true);
+  currentScene = n;
+  hideSpeechBubble();
+  hideChoiceModal();
+  document.getElementById('resultPopup').classList.remove('show');
+  updateSceneUI();
+  buildScene(n);
+  setTimeout(() => playOpeningSequence(), 400);
+}
+
+function showSpeechBubble(key, name, text) {
+  hideSpeechBubble();
+  const layer = document.getElementById('bubble-layer');
+  if (!layer) return;
+  const el = document.createElement('div');
+  el.className = 'speech-bubble show';
+  const line = (text || '').replace(/[<>&]/g, (ch) => ({ '<':'&lt;', '>':'&gt;', '&':'&amp;' }[ch]));
+  el.innerHTML = '<div class="speaker-name">' + (name || '') + '</div><div class="bubble-text">' + line + '</div>';
+  layer.appendChild(el);
+  activeBubble = { el, key };
+  updateBubblePosition();
+  if (!actors[key]) {
+    el.style.left = '50%';
+    el.style.top = '42%';
+  }
+}
+
+function hideSpeechBubble() {
+  if (activeBubble) { activeBubble.el.remove(); activeBubble = null; }
+}
+
+function revealDialogueThenChoices(dialogue, openChoices) {
+  if (dialogue && dialogue.speaker) {
+    showSpeechBubble(dialogue.speaker, dialogue.name, dialogue.text);
+    document.getElementById('miniDialogue').textContent = dialogue.name + '："' + dialogue.text + '"';
+    setTimeout(() => { if (openChoices) openChoices(); }, 1800);
+  } else if (openChoices) {
+    openChoices();
+  }
+}
+
+function updateBubblePosition() {
+  if (!activeBubble || !actors[activeBubble.key]) return;
+  const a = actors[activeBubble.key];
+  _proj.set(a.x, a.headY, a.z);
+  _proj.project(camera);
+  const x = (_proj.x * 0.5 + 0.5) * window.innerWidth;
+  const y = (-_proj.y * 0.5 + 0.5) * window.innerHeight - 12;
+  activeBubble.el.style.left = x + 'px';
+  activeBubble.el.style.top  = y + 'px';
+}
+
+// ═══ 音效系统 ═══
+let audioOn = true, audioCtx = null, ambientNode = null;
+
+function initAudio() {
+  if (audioCtx) return;
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  startAmbient();
+}
+
+function playTone(freq, dur, type='sine', vol=0.25) {
+  if (!audioOn || !audioCtx) return;
+  const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+  o.connect(g); g.connect(audioCtx.destination);
+  o.type = type; o.frequency.value = freq;
+  g.gain.setValueAtTime(vol, audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+  o.start(); o.stop(audioCtx.currentTime + dur);
+}
+
+function sfxClick()    { playTone(600, 0.06, 'square', 0.12); }
+function sfxSuccess()  { [523,659,784].forEach((f,i) => setTimeout(() => playTone(f,0.25,'sine',0.2), i*100)); }
+function sfxFail()     { [350,280,220].forEach((f,i) => setTimeout(() => playTone(f,0.3,'sawtooth',0.15), i*120)); }
+function sfxBird()     { playTone(1800+Math.random()*400, 0.08, 'sine', 0.04); }
+function sfxWind()     { if (!audioOn||!audioCtx) return; playTone(80+Math.random()*30, 1.5, 'sine', 0.03); }
+
+function startAmbient() {
+  if (!audioOn || !audioCtx) return;
+  sfxWind();
+  setInterval(() => { if(audioOn) { sfxWind(); if(Math.random()>0.6) sfxBird(); } }, 4000);
+}
+
+function speak(text) { speakNarration(text); }
+
+function toggleAudio() {
+  audioOn = !audioOn;
+  document.getElementById('audioBtn').textContent = audioOn ? '🔊' : '🔇';
+  if (audioOn) { initAudio(); playOpeningSequence(); }
+  else { stopAllSpeech(); hideSpeechBubble(); document.getElementById('narrationBar').classList.remove('show'); }
+}
+
+function initThree() {
+  const c = document.getElementById('canvas-container');
+  renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.shadowMap.enabled = true;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  c.appendChild(renderer.domElement);
+  scene3d = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(48, window.innerWidth / window.innerHeight, 0.1, 600);
+  window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+  document.body.addEventListener('click', () => initAudio(), { once: true });
+}
+
+function add(obj) { scene3d.add(obj); sceneObjects.push(obj); }
+
+function buildSky() {
+  add(new THREE.Mesh(new THREE.SphereGeometry(400, 32, 32), new THREE.ShaderMaterial({
+    side: THREE.BackSide,
+    uniforms: {
+      topColor: { value: new THREE.Color(0x4a7a9a) },
+      bottomColor: { value: new THREE.Color(0xd8c090) },
+      offset: { value: 0.35 }, exponent: { value: 0.55 }
+    },
+    vertexShader: 'varying vec3 vP;void main(){vec4 w=modelMatrix*vec4(position,1.0);vP=w.xyz;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
+    fragmentShader: 'uniform vec3 topColor,bottomColor;uniform float offset,exponent;varying vec3 vP;void main(){float h=normalize(vP+offset).y;gl_FragColor=vec4(mix(bottomColor,topColor,max(pow(max(h,0.0),exponent),0.0)),1.0);}'
+  })));
+}
+
+function buildMountains() {
+  const g = new THREE.Group();
+  for (let i = 0; i < 14; i++) {
+    const h = 8 + Math.random() * 18;
+    const m = new THREE.Mesh(new THREE.ConeGeometry(10+Math.random()*12, h, 6),
+      new THREE.MeshStandardMaterial({ color: 0x4a6a4a, roughness: 1 }));
+    m.position.set((i-7)*20, h*0.22-1, -50-Math.random()*30);
+    g.add(m);
+  }
+  add(g);
+}
+
+// ★ 更长更连续的古香道
+function buildAncientPath() {
+  const group = new THREE.Group();
+  const stoneMat = new THREE.MeshStandardMaterial({ color: 0x8a8a7a, roughness: 0.92 });
+  const darkMat  = new THREE.MeshStandardMaterial({ color: 0x5a5a4a, roughness: 0.95 });
+  const mossMat  = new THREE.MeshStandardMaterial({ color: 0x5a6a3a, roughness: 1 });
+  const PATH_LEN = 55;
+
+  // 连续路基
+  const base = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.1, PATH_LEN), darkMat);
+  base.position.set(0, 0.05, -PATH_LEN/2 + 5);
+  base.receiveShadow = true;
+  group.add(base);
+
+  // 石板连续铺设
+  for (let z = 0; z < PATH_LEN; z++) {
+    for (let x = -1; x <= 1; x++) {
+      const stone = new THREE.Mesh(
+        new THREE.BoxGeometry(0.9+Math.random()*0.15, 0.05+Math.random()*0.03, 0.6+Math.random()*0.1),
+        Math.random() > 0.65 ? mossMat : stoneMat
+      );
+      stone.position.set(x*0.95+(Math.random()-0.5)*0.1, 0.1, -z*0.92+6);
+      stone.rotation.y = (Math.random()-0.5)*0.06;
+      stone.castShadow = true; stone.receiveShadow = true;
+      group.add(stone);
+    }
+  }
+
+  // 两侧连续土路肩
+  for (let side of [-1, 1]) {
+    for (let z = 0; z < PATH_LEN; z += 1) {
+      const shoulder = new THREE.Mesh(
+        new THREE.BoxGeometry(2.8, 0.15+Math.random()*0.2, 1.1),
+        new THREE.MeshStandardMaterial({ color: 0x4a3a2a, roughness: 1 })
+      );
+      shoulder.position.set(side*3.2, 0.08, -z*0.92+6);
+      group.add(shoulder);
+    }
+  }
+
+  add(group);
+}
+
+// ★ 更高更绿的老槐树
+function buildOldTree() {
+  const tree = new THREE.Group();
+  const trunkMat = new THREE.MeshStandardMaterial({ color: 0x3d2817, roughness: 0.9 });
+
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.65, 7, 12), trunkMat);
+  trunk.position.set(0, 3.5, 0); trunk.castShadow = true;
+  tree.add(trunk);
+
+  const greens = [0x1a6b1a, 0x228b22, 0x2e9e2e, 0x3cb33c];
+  [[3.5,7.5],[3.0,8.5],[2.2,9.2],[1.5,10]].forEach((c,i) => {
+    const crown = new THREE.Mesh(
+      new THREE.SphereGeometry(c[0], 10, 10),
+      new THREE.MeshStandardMaterial({ color: greens[i%greens.length], roughness: 0.8 })
+    );
+    crown.position.set(0, c[1], 0);
+    crown.scale.set(1.2, 0.8, 1.1);
+    crown.castShadow = true;
+    tree.add(crown);
+  });
+
+  tree.position.set(-3.2, 0, -1.5);
+  add(tree);
+}
+
+// ★ 古道两侧更高更绿的树
+function buildRoadsideTrees() {
+  const g = new THREE.Group();
+  const trunkMat = new THREE.MeshStandardMaterial({ color: 0x3a2510, roughness: 0.95 });
+  const greens = [0x1a5c1a, 0x267326, 0x32a032, 0x3dbd3d];
+
+  for (let z = 2; z < 50; z += 3) {
+    for (let side of [-1, 1]) {
+      if (Math.random() > 0.25) continue;
+      const tree = new THREE.Group();
+      const h = 4 + Math.random() * 5;
+      const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.22, h, 8), trunkMat);
+      trunk.position.y = h/2; tree.add(trunk);
+      const crown = new THREE.Mesh(
+        new THREE.SphereGeometry(1.2+Math.random()*0.8, 8, 8),
+        new THREE.MeshStandardMaterial({ color: greens[Math.floor(Math.random()*greens.length)], roughness: 0.85 })
+      );
+      crown.position.y = h + 0.8;
+      crown.scale.set(1, 1.3, 1);
+      tree.add(crown);
+      tree.position.set(side*(4+Math.random()*1.5), 0, -z*0.92+6);
+      g.add(tree);
+    }
+  }
+  add(g);
+}
+
+function buildVegetation() {
+  const g = new THREE.Group();
+  const greens = [0x2d6b2d, 0x3a8a3a, 0x45a045];
+  for (let i = 0; i < 40; i++) {
+    const bush = new THREE.Mesh(
+      new THREE.SphereGeometry(0.35+Math.random()*0.4, 6, 6),
+      new THREE.MeshStandardMaterial({ color: greens[i%3], roughness: 0.9 })
+    );
+    const side = Math.random() > 0.5 ? 1 : -1;
+    bush.position.set(side*(3.5+Math.random()*2), 0.2, -Math.random()*45+5);
+    bush.scale.y = 0.6+Math.random()*0.3;
+    g.add(bush);
+  }
+  add(g);
+}
+
+// ★ 林迈可 GLB 若导出错成场景道具，用程序生成教授形象兜底
+function buildProfessorFigure(cfg) {
+  const man = new THREE.Group();
+  const skin = new THREE.MeshStandardMaterial({ color: 0xe8c4a8, roughness: 0.85 });
+  const coat = new THREE.MeshStandardMaterial({ color: 0x4a4a52, roughness: 0.9 });
+  const pants = new THREE.MeshStandardMaterial({ color: 0x2a2a35, roughness: 0.9 });
+  const shoe = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.8 });
+
+  const torso = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.62, 0.22), coat);
+  torso.position.y = 1.18; torso.castShadow = true; man.add(torso);
+
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.17, 12, 12), skin);
+  head.position.y = 1.68; head.castShadow = true; man.add(head);
+
+  const glasses = new THREE.Mesh(new THREE.TorusGeometry(0.09, 0.008, 8, 16), new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.6 }));
+  glasses.position.set(0, 1.7, 0.15); glasses.rotation.x = Math.PI / 2; man.add(glasses);
+
+  [[-0.11, 1.02], [0.11, 1.02]].forEach(([x, y]) => {
+    const leg = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.55, 0.16), pants);
+    leg.position.set(x, y, 0); leg.castShadow = true; man.add(leg);
+    const foot = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.07, 0.24), shoe);
+    foot.position.set(x, 0.72, 0.04); foot.castShadow = true; man.add(foot);
+  });
+
+  const armL = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.48, 0.12), coat);
+  armL.position.set(-0.3, 1.15, 0.05); armL.rotation.z = 0.15; man.add(armL);
+  const armR = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.48, 0.12), coat);
+  armR.position.set(0.3, 1.12, -0.05); armR.rotation.z = -0.1; man.add(armR);
+
+  man.rotation.y = cfg.rotY;
+  man.position.set(cfg.x, PATH_Y, cfg.z);
+  add(man);
+  registerActor('linmaike', cfg);
+  modelsLoaded++;
+  console.log('✅', cfg.label, '（程序模型）已放置');
+}
+
+// 检测 GLB 是否像站立人物（林迈可文件误导出成石阶时会被拦截）
+function looksLikeCharacter(gltf) {
+  const box = new THREE.Box3().setFromObject(gltf.scene);
+  const s = box.getSize(new THREE.Vector3());
+  return s.y > s.x * 1.05 && s.y > s.z * 1.05;
+}
+
+// ★ 加载模型：自动贴地 + 材质修正
+let modelsLoaded = 0;
+const MODEL_TOTAL = 3;
+
+// 注册角色锚点（脑袋上方挂气泡）
+function registerActor(key, cfg) {
+  actors[key] = { x: cfg.x, z: cfg.z, headY: cfg.headY || 2.3 };
+}
+
+function loadGLB(path, cfg, opts = {}) {
+  if (opts.procedural) {
+    buildProfessorFigure(cfg);
+    return;
+  }
+
+  gltfLoader.load(path, (gltf) => {
+    if (cfg.label === '林迈可' && !looksLikeCharacter(gltf)) {
+      console.warn('⚠️', path, '不是人物模型（可能是石阶/场景），已改用程序教授模型');
+      buildProfessorFigure(cfg);
+      return;
+    }
+
+    const wrap = new THREE.Group();
+    const m = gltf.scene;
+    m.rotation.order = 'YXZ';
+    m.rotation.y = cfg.rotY;
+    m.rotation.x = cfg.rotX || 0;
+    m.scale.set(cfg.scale, cfg.scale, cfg.scale);
+    wrap.add(m);
+    wrap.updateMatrixWorld(true);
+
+    const box = new THREE.Box3().setFromObject(wrap);
+    const baseY = cfg.groundTo === 'path' ? PATH_Y : 0;
+    const lift = (cfg.liftExtra || 0) + (cfg.yFix || 0);
+    const groundY = baseY - box.min.y + lift;
+    wrap.position.set(cfg.x, groundY, cfg.z);
+
+    m.traverse(c => {
+      if (!c.isMesh) return;
+      c.castShadow = true;
+      c.receiveShadow = true;
+      const mats = Array.isArray(c.material) ? c.material : [c.material];
+      mats.forEach(mat => {
+        if (!mat) return;
+        mat.side = THREE.DoubleSide;
+        if (mat.map) mat.map.encoding = THREE.sRGBEncoding;
+        if (mat.emissive) mat.emissive.setRGB(0, 0, 0);
+        mat.emissiveIntensity = 0;
+        mat.needsUpdate = true;
+      });
+    });
+
+    add(wrap);
+    if (cfg.label === '林夫人') registerActor('wife', cfg);
+    else if (cfg.label === '林迈可') registerActor('linmaike', cfg);
+    else if (cfg.label === '掌柜') registerActor('shopkeeper', cfg);
+    modelsLoaded++;
+    console.log('✅', cfg.label || path, 'y=', groundY.toFixed(2));
+    if (modelsLoaded >= MODEL_TOTAL) {
+      const el = document.querySelector('#loading div:last-child');
+      if (el) el.textContent = '加载完成';
+    }
+  }, (xhr) => {
+    if (xhr.total && cfg.label) {
+      const pct = Math.round(xhr.loaded / xhr.total * 100);
+      const el = document.querySelector('#loading div:last-child');
+      if (el) el.textContent = '加载 ' + cfg.label + '… ' + pct + '%';
+    }
+  }, (err) => {
+    console.error('❌ 加载失败', path, err);
+    if (cfg.label === '林迈可') buildProfessorFigure(cfg);
+    else addPlaceholder(cfg);
+  });
+}
+
+// 模型失败时显示占位，避免场景空缺
+function addPlaceholder(cfg) {
+  const g = new THREE.Group();
+  const mat = new THREE.MeshStandardMaterial({ color: cfg.label === '木车' ? 0x8b6914 : 0x5566aa });
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 1.6, 10), mat);
+  body.position.y = 0.8;
+  g.add(body);
+  g.position.set(cfg.x, PATH_Y, cfg.z);
+  g.rotation.y = cfg.rotY || 0;
+  add(g);
+  modelsLoaded++;
+}
+
+// ★ 场景一：相机在模型外门口，老板在店内与第一人称水平面对面
+const FUXING_CFG = { scale: 2.2, rotY: 0 };
+const FUXING_BOSS_CFG = { rotY: Math.PI, targetHeight: 1.58, floorSink: 0.08 };
+const FUXING_BOSS_PROC_SCALE = 0.68;
+
+function fitBossAutoScale(scene) {
+  const box = new THREE.Box3().setFromObject(scene);
+  const h = box.getSize(new THREE.Vector3()).y;
+  if (h < 0.05) return 2.0;
+  return FUXING_BOSS_CFG.targetHeight / h;
+}
+
+function countMeshes(root) {
+  let n = 0;
+  root.traverse(c => { if (c.isMesh && c.geometry) n++; });
+  return n;
+}
+
+function placeBossWorld(bossRoot, roomBox, shopModel) {
+  const sight = getFuxingSightLine(roomBox, shopModel);
+  bossRoot.traverse(c => { if (c.isMesh) c.visible = true; });
+  add(bossRoot);
+  bossRoot.updateMatrixWorld(true);
+
+  const box = new THREE.Box3().setFromObject(bossRoot);
+  const bc = box.getCenter(new THREE.Vector3());
+  bossRoot.position.set(
+    sight.lineX - bc.x,
+    roomBox.min.y - box.min.y - FUXING_BOSS_CFG.floorSink,
+    sight.lookZ - bc.z
+  );
+  bossRoot.updateMatrixWorld(true);
+  bossRoot.lookAt(sight.lineX, sight.eyeY, sight.camZ);
+
+  const wb = new THREE.Box3().setFromObject(bossRoot);
+  const sz = wb.getSize(new THREE.Vector3());
+  registerActor('shopkeeper', {
+    x: sight.lineX,
+    z: sight.lookZ,
+    headY: wb.max.y - 0.05,
+    label: '掌柜',
+  });
+  console.log('✅ laoban 已加载', {
+    pos: bossRoot.position,
+    size: { x: sz.x.toFixed(2), y: sz.y.toFixed(2), z: sz.z.toFixed(2) },
+    camZ: sight.camZ.toFixed(2),
+    lookZ: sight.lookZ.toFixed(2),
+  });
+  return sight;
+}
+
+function getBossPlacement(roomBox, shopModel) {
+  const ctr = roomBox.getCenter(new THREE.Vector3());
+  const sz = roomBox.getSize(new THREE.Vector3());
+  let lineX = ctr.x;
+  let lookZ = roomBox.min.z + sz.z * 0.26;
+
+  const counterBox = findCounterBox(shopModel);
+  if (counterBox) {
+    lineX = counterBox.getCenter(new THREE.Vector3()).x;
+    lookZ = Math.min(counterBox.min.z - 0.05, roomBox.min.z + sz.z * 0.26);
+  }
+  lookZ = THREE.MathUtils.clamp(lookZ, roomBox.min.z + sz.z * 0.05, roomBox.max.z - sz.z * 0.30);
+
+  return { lineX, lookZ, floorY: roomBox.min.y };
+}
+
+function getFuxingSightLine(roomBox, shopModel) {
+  const sz = roomBox.getSize(new THREE.Vector3());
+  const place = getBossPlacement(roomBox, shopModel);
+  return {
+    lineX: place.lineX,
+    eyeY: roomBox.min.y + sz.y * 0.31,
+    camZ: roomBox.max.z - sz.z * 0.24,
+    lookZ: place.lookZ,
+  };
+}
+function findCounterBox(modelRoot) {
+  let bestBox = null, bestScore = 0;
+  const roomBox = new THREE.Box3().setFromObject(modelRoot);
+  const roomSz = roomBox.getSize(new THREE.Vector3());
+  modelRoot.traverse(c => {
+    if (!c.isMesh || !c.visible) return;
+    const n = (c.name || '').toLowerCase();
+    const b = new THREE.Box3().setFromObject(c);
+    const s = b.getSize(new THREE.Vector3());
+    let score = 0;
+    if (/counter|desk|table|柜台|bar|tai|zhuo/i.test(n)) score += 15;
+    const wide = s.x > s.y * 1.0 && s.x > s.z * 0.5;
+    const low = s.y > 0.25 && s.y < 2.5;
+    if (wide && low) score += 9;
+    if (score === 0 && wide && low) score = 7;
+    if (score > 0) {
+      const pc = b.getCenter(new THREE.Vector3());
+      score += (1 - (pc.z - roomBox.min.z) / Math.max(roomSz.z, 0.01)) * 3;
+      if (score > bestScore) { bestScore = score; bestBox = b; }
+    }
+  });
+  return bestBox;
+}
+
+function placeBossGroup(shopGroup, roomBox, shopModel, bossRoot, localScale) {
+  if (localScale) bossRoot.scale.set(localScale, localScale, localScale);
+  return placeBossWorld(bossRoot, roomBox, shopModel);
+}
+
+function buildFuxingBoxCeiling(box) {
+  const g = new THREE.Group();
+  g.name = 'FuxingBoxCeiling';
+  const min = box.min, max = box.max;
+  const cx = (min.x + max.x) / 2;
+  const cz = (min.z + max.z) / 2;
+  const W = max.x - min.x + 0.25;
+  const D = max.z - min.z + 0.25;
+  const ceilMat = new THREE.MeshStandardMaterial({ color: 0x7a7068, roughness: 0.9 });
+  const ceil = new THREE.Mesh(new THREE.BoxGeometry(W, 0.14, D), ceilMat);
+  ceil.position.set(cx, max.y + 0.07, cz);
+  ceil.receiveShadow = true;
+  g.add(ceil);
+  add(g);
+}
+
+function findShopkeeperNode(root) {
+  let best = null, bestScore = 0;
+  const roomBox = new THREE.Box3().setFromObject(root);
+  const roomSz = roomBox.getSize(new THREE.Vector3());
+  root.traverse(c => {
+    if (!c.isMesh) return;
+    const n = (c.name || '').toLowerCase();
+    let score = 0;
+    if (/shopkeeper|掌柜|boss|clerk|person|human|character|man|people|worker/i.test(n)) score += 12;
+    const b = new THREE.Box3().setFromObject(c);
+    const s = b.getSize(new THREE.Vector3());
+    const h = s.y;
+    const tall = h > s.x * 1.15 && h > s.z * 1.15;
+    if (tall && h > 1.0 && h < 2.8) score += 6;
+    if (score === 0 && tall && h > 1.35 && h < 2.4) score += 3;
+    if (score > 0) {
+      const pc = b.getCenter(new THREE.Vector3());
+      const counterBias = 1 - (pc.z - roomBox.min.z) / Math.max(roomSz.z, 0.01);
+      score += counterBias * 2;
+    }
+    if (score > bestScore) { bestScore = score; best = c; }
+  });
+  return best;
+}
+
+function hideEmbeddedShopkeeper(modelRoot) {
+  const person = findShopkeeperNode(modelRoot);
+  if (!person) return;
+  person.traverse(c => { c.visible = false; });
+  person.visible = false;
+}
+
+function buildRepublicShopkeeperFigure() {
+  const man = new THREE.Group();
+  man.name = 'FuxingBossFigure';
+  const skin = new THREE.MeshStandardMaterial({ color: 0xe8b898, roughness: 0.8 });
+  const skinDark = new THREE.MeshStandardMaterial({ color: 0xc89878, roughness: 0.85 });
+  const robe = new THREE.MeshStandardMaterial({ color: 0x2c3e50, roughness: 0.88 });
+  const robeDark = new THREE.MeshStandardMaterial({ color: 0x1e2a36, roughness: 0.9 });
+  const hatMat = new THREE.MeshStandardMaterial({ color: 0x141414, roughness: 0.82 });
+  const shoe = new THREE.MeshStandardMaterial({ color: 0x2a2218, roughness: 0.92 });
+  const belt = new THREE.MeshStandardMaterial({ color: 0x5a4028, roughness: 0.78 });
+  const white = new THREE.MeshStandardMaterial({ color: 0xe8e4dc, roughness: 0.9 });
+
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.19, 18, 18), skin);
+  head.scale.set(1.02, 1.1, 0.94);
+  head.position.y = 1.74;
+  head.castShadow = true;
+  man.add(head);
+
+  [-0.055, 0.055].forEach(x => {
+    const eyeW = new THREE.Mesh(new THREE.SphereGeometry(0.018, 8, 8), white);
+    eyeW.position.set(x, 1.76, 0.155);
+    man.add(eyeW);
+    const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.009, 6, 6),
+      new THREE.MeshStandardMaterial({ color: 0x1a1410 }));
+    pupil.position.set(x, 1.76, 0.172);
+    man.add(pupil);
+    const brow = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.012, 0.02), skinDark);
+    brow.position.set(x, 1.8, 0.148);
+    man.add(brow);
+  });
+
+  const nose = new THREE.Mesh(new THREE.SphereGeometry(0.028, 8, 8), skin);
+  nose.scale.set(0.8, 1, 0.7);
+  nose.position.set(0, 1.72, 0.168);
+  man.add(nose);
+
+  const mustache = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.018, 0.025), skinDark);
+  mustache.position.set(0, 1.68, 0.16);
+  man.add(mustache);
+  const goatee = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.08, 0.03), skinDark);
+  goatee.position.set(0, 1.62, 0.155);
+  man.add(goatee);
+
+  const cap = new THREE.Mesh(new THREE.SphereGeometry(0.205, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.52), hatMat);
+  cap.scale.set(1, 0.42, 1);
+  cap.position.y = 1.9;
+  man.add(cap);
+  const capBrim = new THREE.Mesh(new THREE.CylinderGeometry(0.205, 0.215, 0.025, 16), hatMat);
+  capBrim.position.y = 1.865;
+  man.add(capBrim);
+
+  const collar = new THREE.Mesh(new THREE.TorusGeometry(0.13, 0.022, 8, 20), white);
+  collar.rotation.x = Math.PI / 2;
+  collar.position.set(0, 1.54, 0.04);
+  man.add(collar);
+
+  const robeUpper = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.3, 0.58, 14), robe);
+  robeUpper.position.y = 1.3;
+  robeUpper.castShadow = true;
+  man.add(robeUpper);
+
+  const robeMid = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.36, 0.5, 14), robe);
+  robeMid.position.y = 0.76;
+  robeMid.castShadow = true;
+  man.add(robeMid);
+
+  const robeHem = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.38, 0.22, 14), robeDark);
+  robeHem.position.y = 0.4;
+  robeHem.castShadow = true;
+  man.add(robeHem);
+
+  const beltMesh = new THREE.Mesh(new THREE.BoxGeometry(0.54, 0.055, 0.28), belt);
+  beltMesh.position.y = 1.02;
+  man.add(beltMesh);
+  const beltKnot = new THREE.Mesh(new THREE.SphereGeometry(0.035, 8, 8), belt);
+  beltKnot.position.set(0, 1.02, 0.15);
+  man.add(beltKnot);
+
+  [-0.34, 0.34].forEach(sx => {
+    const sleeve = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 0.52, 10), robe);
+    sleeve.position.set(sx, 1.08, 0.04);
+    sleeve.rotation.z = sx > 0 ? -0.12 : 0.12;
+    sleeve.castShadow = true;
+    man.add(sleeve);
+    const cuff = new THREE.Mesh(new THREE.CylinderGeometry(0.085, 0.07, 0.06, 10), robeDark);
+    cuff.position.set(sx * 1.05, 0.82, 0.06);
+    man.add(cuff);
+  });
+
+  const handL = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 8), skin);
+  handL.position.set(-0.12, 0.95, 0.18);
+  man.add(handL);
+  const handR = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 8), skin);
+  handR.position.set(0.12, 0.95, 0.18);
+  man.add(handR);
+
+  [[-0.1, 0.08], [0.1, 0.08]].forEach(([x, z]) => {
+    const foot = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.06, 0.26), shoe);
+    foot.position.set(x, 0.03, z);
+    foot.castShadow = true;
+    man.add(foot);
+  });
+
+  [[-0.14, 1.15], [0.14, 1.12]].forEach(([x, y], i) => {
+    const fold = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.35, 0.02), robeDark);
+    fold.position.set(x, y, 0.2);
+    fold.rotation.z = i ? -0.08 : 0.08;
+    man.add(fold);
+  });
+
+  return man;
+}
+
+function spawnFuxingBoss(shopGroup, roomBox, shopModel, onReady) {
+  const useProcedural = () => {
+    const man = buildRepublicShopkeeperFigure();
+    placeBossGroup(shopGroup, roomBox, shopModel, man, FUXING_BOSS_PROC_SCALE);
+    console.log('✅ 程序掌柜备用');
+    if (onReady) onReady();
+  };
+
+  gltfLoader.load(MODEL_FILES.boss, (gltf) => {
+    const m = gltf.scene;
+    if (countMeshes(m) === 0) {
+      console.warn('⚠️ laoban.glb 无网格，改用程序掌柜');
+      useProcedural();
+      return;
+    }
+    const s = fitBossAutoScale(m);
+    m.scale.set(s, s, s);
+    const wrap = new THREE.Group();
+    wrap.name = 'FuxingBossGLB';
+    wrap.add(m);
+    fixMaterials(m);
+    placeBossWorld(wrap, roomBox, shopModel);
+    if (onReady) onReady();
+  }, (xhr) => {
+    if (xhr.total) {
+      const pct = Math.round(xhr.loaded / xhr.total * 100);
+      const el = document.querySelector('#loading div:last-child');
+      if (el) el.textContent = '加载老板 laoban.glb… ' + pct + '%';
+    }
+  }, (e) => {
+    console.warn('⚠️ laoban.glb 加载失败', e);
+    useProcedural();
+  });
+}
+
+function placeFuxingLights(box) {
+  const ctr = box.getCenter(new THREE.Vector3());
+  const sz = box.getSize(new THREE.Vector3());
+  const boss = actors.shopkeeper;
+  const lampX = boss ? boss.x : ctr.x;
+  const lampZ = boss ? boss.z : box.min.z + sz.z * 0.4;
+
+  add(new THREE.AmbientLight(0xf2ece2, 0.62));
+  add(new THREE.HemisphereLight(0xfff6ea, 0x8a7a68, 0.45));
+  const daylight = new THREE.DirectionalLight(0xfff0d8, 0.95);
+  daylight.position.set(ctr.x, box.max.y + 2.5, box.max.z + 1.5);
+  daylight.castShadow = true;
+  add(daylight);
+  const fill = new THREE.DirectionalLight(0xffe8cc, 0.35);
+  fill.position.set(box.min.x - 1.5, box.min.y + sz.y * 0.8, ctr.z);
+  add(fill);
+
+  const lamp = new THREE.PointLight(0xffaa66, 0.85, sz.x * 2.2);
+  lamp.position.set(lampX, box.min.y + sz.y * 0.75, lampZ + 0.15);
+  add(lamp);
+  const faceLight = new THREE.PointLight(0xfff0dd, 0.65, 6);
+  faceLight.position.set(lampX, box.min.y + 1.65, lampZ + 0.5);
+  add(faceLight);
+  const ceiling = new THREE.PointLight(0xfff5e8, 0.48, sz.x * 2.4);
+  ceiling.position.set(ctr.x, box.max.y + 0.3, ctr.z);
+  add(ceiling);
+}
+
+function applyFuxingInteriorCamera(box, shopModel) {
+  const sight = getFuxingSightLine(box, shopModel);
+  const boss = actors.shopkeeper;
+  const lineX = boss ? boss.x : sight.lineX;
+  const lookZ = boss ? boss.z : sight.lookZ;
+  camera.fov = 58;
+  camera.updateProjectionMatrix();
+  camera.position.set(lineX, sight.eyeY, sight.camZ);
+  camera.lookAt(lineX, sight.eyeY, lookZ);
+  SCENES[1].camera = {
+    pos: [lineX, sight.eyeY, sight.camZ],
+    look: [lineX, sight.eyeY, lookZ],
+  };
+  const sz = box.getSize(new THREE.Vector3());
+  console.log('📷 相机在店内门口 z=' + sight.camZ.toFixed(2) + '，看向 z=' + lookZ.toFixed(2) + '，模型范围 z=[' + box.min.z.toFixed(2) + ',' + box.max.z.toFixed(2) + ']');
+}
+
+function loadFuxingShopMain() {
+  gltfLoader.load(MODEL_FILES.shop, (gltf) => {
+    const shop = new THREE.Group();
+    shop.name = 'FuxingShopMain';
+    const m = gltf.scene;
+    m.rotation.y = FUXING_CFG.rotY;
+    m.scale.set(FUXING_CFG.scale, FUXING_CFG.scale, FUXING_CFG.scale);
+    shop.add(m);
+    shop.updateMatrixWorld(true);
+
+    const rawBox = new THREE.Box3().setFromObject(shop);
+    const rawCtr = rawBox.getCenter(new THREE.Vector3());
+    shop.position.set(-rawCtr.x, -rawBox.min.y, -rawCtr.z);
+    shop.updateMatrixWorld(true);
+
+    fixMaterials(m);
+    hideEmbeddedShopkeeper(m);
+    add(shop);
+
+    const roomBox = new THREE.Box3().setFromObject(shop);
+    buildFuxingBoxCeiling(roomBox);
+    spawnFuxingBoss(shop, roomBox, m, () => {
+      placeFuxingLights(roomBox);
+      applyFuxingInteriorCamera(roomBox, m);
+      const el = document.querySelector('#loading div:last-child');
+      if (el) el.textContent = '福兴商号加载完成';
+    });
+    console.log('✅ 福兴商号主场景', MODEL_FILES.shop);
+  }, (xhr) => {
+    if (xhr.total) {
+      const pct = Math.round(xhr.loaded / xhr.total * 100);
+      const el = document.querySelector('#loading div:last-child');
+      if (el) el.textContent = '加载福兴商号… ' + pct + '%';
+    }
+  }, (e) => {
+    console.warn('⚠️ 商号 GLB 加载失败', e);
+    buildFuxingFallbackRoom();
+  });
+}
+
+function buildFuxingFallbackRoom() {
+  const g = new THREE.Group();
+  g.name = 'FuxingFallback';
+  const counter = new THREE.Mesh(new THREE.BoxGeometry(3.2, 1.0, 0.7), new THREE.MeshStandardMaterial({ color: 0x5a3a18 }));
+  counter.name = 'counter';
+  counter.position.set(0, 0.5, -1.5);
+  g.add(counter);
+  add(g);
+  const box = new THREE.Box3().setFromObject(g);
+  buildFuxingBoxCeiling(box);
+  spawnFuxingBoss(g, box, g, () => {
+    placeFuxingLights(box);
+    applyFuxingInteriorCamera(box, g);
+  });
+}
+
+function fixMaterials(obj) {
+  obj.traverse(c => {
+    if (!c.isMesh) return;
+    c.castShadow = true; c.receiveShadow = true;
+    const mats = Array.isArray(c.material) ? c.material : [c.material];
+    mats.forEach(mat => {
+      if (!mat) return;
+      mat.side = THREE.DoubleSide;
+      if (mat.map) mat.map.encoding = THREE.sRGBEncoding;
+      if (mat.emissive) mat.emissive.setRGB(0, 0, 0);
+      mat.emissiveIntensity = 0;
+      mat.needsUpdate = true;
+    });
+  });
+}
+
+const LIAISON_CFG = { scale: 2.0, rotY: 0 };
+const LIAISON_MESSENGER_CFG = { targetHeight: 1.35, seatSink: 0.42, rotY: Math.PI };
+
+function getLiaisonLayout(roomBox) {
+  const sz = roomBox.getSize(new THREE.Vector3());
+  const ctr = roomBox.getCenter(new THREE.Vector3());
+  const tableTopY = roomBox.min.y + sz.y * 0.44;
+  const tableZ = ctr.z - sz.z * 0.04;
+  const seatY = roomBox.min.y + sz.y * 0.30;
+  const chairZ = ctr.z + sz.z * 0.26;
+  const docSpread = sz.x * 0.11;
+  return { ctr, sz, tableTopY, tableX: ctr.x, tableZ, seatY, chairX: ctr.x, chairZ, docSpread };
+}
+
+function fitMessengerScale(scene) {
+  const box = new THREE.Box3().setFromObject(scene);
+  const h = box.getSize(new THREE.Vector3()).y;
+  if (h < 0.05) return 1.2;
+  return LIAISON_MESSENGER_CFG.targetHeight / h;
+}
+
+function buildLiaisonDocuments(layout) {
+  const g = new THREE.Group();
+  g.name = 'LiaisonDocuments';
+  const colors = [0xc44e4e, 0x4e7ac4, 0xc4a84e];
+  [-1, 0, 1].forEach((i, idx) => {
+    const w = layout.docSpread * 0.72;
+    const doc = new THREE.Mesh(
+      new THREE.BoxGeometry(w, 0.012, w * 1.25),
+      new THREE.MeshStandardMaterial({ color: colors[idx], roughness: 0.88, metalness: 0.02 })
+    );
+    doc.position.set(layout.tableX + i * layout.docSpread, layout.tableTopY + 0.008, layout.tableZ);
+    doc.rotation.y = (idx - 1) * 0.04;
+    doc.castShadow = true;
+    g.add(doc);
+  });
+  add(g);
+}
+
+function placeLiaisonLights(roomBox, layout) {
+  add(new THREE.AmbientLight(0x120a06, 0.08));
+  const lamp = new THREE.PointLight(0xff7722, 1.35, layout.sz.length() * 1.4);
+  lamp.position.set(layout.tableX, layout.tableTopY + 0.2, layout.tableZ);
+  add(lamp);
+  const fill = new THREE.PointLight(0xffaa55, 0.22, 6);
+  fill.position.set(layout.tableX + 0.15, layout.tableTopY + 0.32, layout.tableZ + 0.12);
+  add(fill);
+}
+
+function buildLiaisonDarkExterior(roomBox) {
+  const sz = roomBox.getSize(new THREE.Vector3());
+  const ctr = roomBox.getCenter(new THREE.Vector3());
+  const shell = new THREE.Mesh(
+    new THREE.BoxGeometry(sz.x * 4, sz.y * 3.5, sz.z * 4),
+    new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.BackSide })
+  );
+  shell.position.copy(ctr);
+  add(shell);
+}
+
+function placeMessengerOnChair(messengerRoot, layout) {
+  messengerRoot.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(messengerRoot);
+  const bc = box.getCenter(new THREE.Vector3());
+  messengerRoot.position.set(
+    layout.chairX - bc.x,
+    layout.seatY - box.min.y - LIAISON_MESSENGER_CFG.seatSink,
+    layout.chairZ - bc.z
+  );
+  messengerRoot.rotation.y = LIAISON_MESSENGER_CFG.rotY;
+  messengerRoot.updateMatrixWorld(true);
+  messengerRoot.lookAt(layout.tableX, layout.tableTopY, layout.tableZ);
+  add(messengerRoot);
+}
+
+function applyLiaisonCamera(roomBox, layout) {
+  const eyeY = layout.seatY + layout.sz.y * 0.22;
+  const camZ = layout.chairZ + layout.sz.z * 0.18;
+  const lookY = layout.tableTopY + 0.02;
+  camera.fov = 52;
+  camera.updateProjectionMatrix();
+  camera.position.set(layout.chairX, eyeY, camZ);
+  camera.lookAt(layout.tableX, lookY, layout.tableZ);
+  SCENES[2].camera = {
+    pos: [layout.chairX, eyeY, camZ],
+    look: [layout.tableX, lookY, layout.tableZ],
+  };
+  console.log('📷 场景二：坐于椅上面向三份密报', SCENES[2].camera);
+}
+
+function spawnLiaisonMessenger(roomBox, layout, onReady) {
+  const useProcedural = () => {
+    const man = buildRepublicShopkeeperFigure();
+    man.scale.setScalar(0.62);
+    placeMessengerOnChair(man, layout);
+    if (onReady) onReady();
+  };
+
+  gltfLoader.load(MODEL_FILES.boss, (gltf) => {
+    const m = gltf.scene;
+    if (countMeshes(m) === 0) {
+      useProcedural();
+      return;
+    }
+    const wrap = new THREE.Group();
+    const sc = fitMessengerScale(m);
+    m.scale.set(sc, sc, sc);
+    fixMaterials(m);
+    wrap.add(m);
+    placeMessengerOnChair(wrap, layout);
+    console.log('✅ 交通员已就座');
+    if (onReady) onReady();
+  }, undefined, () => useProcedural());
+}
+
+function loadLiaisonMain() {
+  gltfLoader.load(MODEL_FILES.liaison, (gltf) => {
+    const root = new THREE.Group();
+    root.name = 'LiaisonRoomMain';
+    const m = gltf.scene;
+    m.rotation.y = LIAISON_CFG.rotY;
+    m.scale.set(LIAISON_CFG.scale, LIAISON_CFG.scale, LIAISON_CFG.scale);
+    root.add(m);
+    root.updateMatrixWorld(true);
+
+    const rawBox = new THREE.Box3().setFromObject(root);
+    const rawCtr = rawBox.getCenter(new THREE.Vector3());
+    root.position.set(-rawCtr.x, -rawBox.min.y, -rawCtr.z);
+    root.updateMatrixWorld(true);
+
+    fixMaterials(m);
+    add(root);
+
+    const roomBox = new THREE.Box3().setFromObject(root);
+    const layout = getLiaisonLayout(roomBox);
+    buildLiaisonDarkExterior(roomBox);
+    buildLiaisonDocuments(layout);
+    placeLiaisonLights(roomBox, layout);
+    spawnLiaisonMessenger(roomBox, layout, () => {
+      applyLiaisonCamera(roomBox, layout);
+      const el = document.querySelector('#loading div:last-child');
+      if (el) el.textContent = '联络站加载完成';
+    });
+    console.log('✅ 地下联络站', MODEL_FILES.liaison, layout);
+  }, (xhr) => {
+    if (xhr.total) {
+      const pct = Math.round(xhr.loaded / xhr.total * 100);
+      const el = document.querySelector('#loading div:last-child');
+      if (el) el.textContent = '加载联络站… ' + pct + '%';
+    }
+  }, (e) => {
+    console.warn('⚠️ 联络站 GLB 加载失败，使用程序房间', e);
+    buildLiaisonRoom();
+    const roomBox = new THREE.Box3(
+      new THREE.Vector3(-3.5, 0, -3.5),
+      new THREE.Vector3(3.5, 3.5, 3.5)
+    );
+    const layout = getLiaisonLayout(roomBox);
+    buildLiaisonDarkExterior(roomBox);
+    spawnLiaisonMessenger(roomBox, layout, () => applyLiaisonCamera(roomBox, layout));
+  });
+}
+
+function buildLiaisonRoom() {
+  const g = new THREE.Group();
+  const wall = new THREE.MeshStandardMaterial({ color: 0x3a3028, roughness: 0.95 });
+  const wood = new THREE.MeshStandardMaterial({ color: 0x4a3520, roughness: 0.9 });
+  const floor = new THREE.Mesh(new THREE.BoxGeometry(7, 0.1, 7), wood);
+  floor.receiveShadow = true; g.add(floor);
+  const back = new THREE.Mesh(new THREE.BoxGeometry(7, 3.5, 0.15), wall);
+  back.position.set(0, 1.75, -3.5); g.add(back);
+  const left = new THREE.Mesh(new THREE.BoxGeometry(0.15, 3.5, 7), wall);
+  left.position.set(-3.5, 1.75, 0); g.add(left);
+  const right = new THREE.Mesh(new THREE.BoxGeometry(0.15, 3.5, 7), wall);
+  right.position.set(3.5, 1.75, 0); g.add(right);
+  const table = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.08, 1.2), wood);
+  table.position.set(0, 0.75, 0); table.castShadow = true; g.add(table);
+  const lamp = new THREE.PointLight(0xff8833, 1.1, 6);
+  lamp.position.set(0, 1.1, 0); g.add(lamp);
+  const lampMesh = new THREE.Mesh(new THREE.SphereGeometry(0.08,8,8), new THREE.MeshStandardMaterial({ color: 0xffcc66, emissive: 0xff8822, emissiveIntensity: 0.8 }));
+  lampMesh.position.set(0, 0.95, 0); g.add(lampMesh);
+  const colors = [0xc44e4e, 0x4e7ac4, 0xc4a84e];
+  [-0.55, 0, 0.55].forEach((x, i) => {
+    const doc = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.02, 0.38), new THREE.MeshStandardMaterial({ color: colors[i] }));
+    doc.position.set(x, 0.82, 0.1); g.add(doc);
+  });
+  const map = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.6, 0.02), new THREE.MeshStandardMaterial({ color: 0x5a6a4a }));
+  map.position.set(0, 1.8, -3.4); g.add(map);
+  add(g);
+}
+
+function buildScene1() {
+  scene3d.background = new THREE.Color(0xc4ccd4);
+  scene3d.fog = new THREE.FogExp2(0xe4dcd0, 0.007);
+  loadFuxingShopMain();
+}
+
+function buildScene2() {
+  scene3d.background = new THREE.Color(0x000000);
+  scene3d.fog = new THREE.FogExp2(0x050302, 0.065);
+  loadLiaisonMain();
+}
+
+function buildScene3() {
+  scene3d.background = null;
+  buildSky();
+  scene3d.fog = new THREE.FogExp2(0x7a9a8a, 0.006);
+  buildMountains();
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(80, 80), new THREE.MeshStandardMaterial({ color: 0x2d6b2d, roughness: 1 }));
+  ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; add(ground);
+  buildAncientPath(); buildOldTree(); buildRoadsideTrees(); buildVegetation();
+  loadGLB(MODEL_FILES.linmaike, PLACE_S3.linmaike);
+  loadGLB(MODEL_FILES.wife, PLACE_S3.wife);
+  loadGLB(MODEL_FILES.handcart, PLACE_S3.handcart);
+  add(new THREE.AmbientLight(0xffffff, 0.7));
+  const sun = new THREE.DirectionalLight(0xffeedd, 1.05);
+  sun.position.set(5, 14, 8); sun.castShadow = true; add(sun);
+  const fill = new THREE.DirectionalLight(0x99bbdd, 0.45);
+  fill.position.set(-6, 8, 4); add(fill);
+  const cl = new THREE.PointLight(0xfff5e0, 0.65, 12);
+  cl.position.set(-0.5, 3, -0.5); add(cl);
+}
+
+function clearScene() {
+  sceneObjects.forEach(o => scene3d.remove(o));
+  sceneObjects.length = 0;
+  modelsLoaded = 0;
+  for (const k in actors) delete actors[k];
+}
+
+function buildScene(n) {
+  clearScene();
+  if (n === 1) {
+    buildScene1();
+  } else {
+    camera.fov = 48;
+    camera.updateProjectionMatrix();
+    if (n === 2) buildScene2();
+    else buildScene3();
+    if (n !== 2) {
+      const cam = SCENES[n].camera;
+      camera.position.set(cam.pos[0], cam.pos[1], cam.pos[2]);
+      camera.lookAt(cam.look[0], cam.look[1], cam.look[2]);
+    }
+  }
+  sceneReady = true;
+}
+
+function handleChoice(c) {
+  hideChoiceModal();
+  hideSpeechBubble();
+  clearDialogueBubbleTimer();
+  clearAutoAdvance();
+  pendingNextScene = null;
+  pendingHiddenChapter = false;
+  pendingRetry = false;
+  sfxClick();
+  const isFinalBadge = c.success && currentScene === 3 && c.badge === '情报尖兵';
+  const p = document.getElementById('resultPopup');
+  p.className = 'result-popup ' + (c.success ? 'success ' : '') + 'show' + (isFinalBadge ? ' badge-together' : '');
+  document.getElementById('resultIcon').textContent = isFinalBadge ? '🏅' : (c.success ? '✅' : '❌');
+  document.getElementById('resultTitle').textContent = isFinalBadge ? '获得徽章' : (c.success ? '回答正确' : '回答错误');
+  document.getElementById('resultDesc').textContent = c.result;
+  if (isFinalBadge) awardBadge(c.badge);
+  if (c.success) sfxSuccess(); else sfxFail();
+  document.getElementById('narrationBar').classList.remove('show');
+
+  const btn = document.querySelector('#resultPopup .result-close');
+
+  if (c.success && currentScene < 3) {
+    // 答对：显示正确解释，随后进入下一场景
+    pendingNextScene = currentScene + 1;
+    if (btn) btn.textContent = '继续 → 场景' + pendingNextScene;
+    if (c.speech) {
+      const sp = c.speaker || 'shopkeeper';
+      const nm = sp === 'linmaike' ? '林迈可' : sp === 'wife' ? '林夫人' : '掌柜';
+      setTimeout(() => speakCharacter(sp, nm, c.speech, () => scheduleAutoAdvance(true)), 400);
+    } else {
+      scheduleAutoAdvance(false);
+    }
+  } else if (isFinalBadge) {
+    pendingHiddenChapter = true;
+    if (btn) btn.textContent = '继续 → 隐藏篇章';
+    if (typeof playBadgeReveal === 'function') playBadgeReveal('情报尖兵');
+    clearAutoAdvance();
+    autoAdvanceTimer = setTimeout(advanceToHiddenChapter, 3200);
+  } else {
+    // 答错：显示错误解释，可重试
+    pendingRetry = true;
+    if (btn) btn.textContent = '重试';
+    if (c.speech) {
+      const sp = c.speaker || 'shopkeeper';
+      const nm = sp === 'linmaike' ? '林迈可' : sp === 'wife' ? '林夫人' : '掌柜';
+      setTimeout(() => speakCharacter(sp, nm, c.speech), 400);
+    }
+  }
+}
+
+function closeResult() {
+  sfxClick();
+  document.getElementById('resultPopup').classList.remove('show');
+  const btn = document.querySelector('#resultPopup .result-close');
+  if (btn) btn.textContent = '继续';
+  if (pendingRetry) {
+    pendingRetry = false;
+    setTimeout(() => showChoiceModal(), 200);
+    return;
+  }
+  if (pendingHiddenChapter) {
+    advanceToHiddenChapter();
+    return;
+  }
+  if (pendingNextScene) advanceToNextScene();
+}
+
+function render() {
+  requestAnimationFrame(render);
+  updateBubblePosition();
+  renderer.render(scene3d, camera);
+}
+
+window.addEventListener('load', () => {
+  initThree();
+  updateSceneUI();
+  buildScene(1);
+  render();
+  setTimeout(() => {
+    document.getElementById('loading').style.display = 'none';
+    setTimeout(() => {
+      if (!introPlayed) playIntroSequence();
+      else playOpeningSequence();
+    }, 500);
+  }, 1200);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,1988 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>英雄山 · 最后的抉择</title>
+  <link rel="preload" href="models/yingxiongshan/jinianbei.glb" as="fetch" crossorigin>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { overflow: hidden; background: #1a2820; font-family: "PingFang SC", "Microsoft YaHei", sans-serif; color: #fff; }
+    #canvas-container { position: fixed; inset: 0; z-index: 0; }
+    .top-tag { position: fixed; top: 14px; left: 14px; z-index: 10; background: rgba(40,70,50,0.9); padding: 5px 12px; border-radius: 14px; font-size: 11px; }
+    .back-link { position: fixed; top: 14px; right: 14px; z-index: 10; color: #ddd; font-size: 11px; text-decoration: none; background: rgba(255,255,255,0.1); padding: 6px 12px; border-radius: 14px; }
+    .audio-btn { position: fixed; top: 50px; right: 14px; z-index: 10; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.3); color: #fff; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; font-size: 16px; }
+    .mini-panel { position: fixed; bottom: 16px; right: 16px; z-index: 20; width: 280px; background: rgba(12,22,16,0.88); border: 1px solid rgba(120,180,140,0.25); border-radius: 12px; padding: 12px 14px; }
+    .mini-year { font-size: 10px; color: #8ab898; margin-bottom: 4px; }
+    .mini-title { font-size: 13px; font-weight: bold; color: #c8e8c0; margin-bottom: 6px; }
+    .mini-dialogue { font-size: 11px; line-height: 1.5; color: #d0e0d0; border-left: 2px solid #4a7a58; padding-left: 8px; font-style: italic; }
+    .narration-bar { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); z-index: 18; max-width: 540px; width: 90%; background: rgba(10,18,14,0.88); border: 1px solid rgba(100,150,110,0.45); border-radius: 10px; padding: 10px 16px; font-size: 12px; line-height: 1.55; color: #d8e8d8; font-style: italic; display: none; }
+    .narration-bar.show { display: block; }
+    .choice-overlay { position: fixed; inset: 0; z-index: 40; background: rgba(0,0,0,0.58); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; }
+    .choice-overlay.show { display: flex; }
+    .choice-modal { width: min(460px, 92vw); background: linear-gradient(160deg, rgba(16,28,20,0.98), rgba(8,14,10,0.99)); border: 2px solid #3a6a48; border-radius: 16px; padding: 22px 24px; }
+    .choice-modal h3 { font-size: 15px; color: #c8e8c0; margin-bottom: 6px; }
+    .choice-modal .prompt { font-size: 12px; color: #bbb; margin-bottom: 14px; line-height: 1.5; }
+    .choice-modal-btn { display: block; width: 100%; background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.2); color: #eee; padding: 11px 14px; border-radius: 10px; cursor: pointer; text-align: left; font-size: 13px; margin-bottom: 8px; line-height: 1.45; }
+    .choice-modal-btn:hover { background: rgba(60,100,70,0.55); }
+    .choice-modal-btn .opt { color: #a8d8b0; font-weight: bold; margin-right: 6px; }
+    .result-popup { position: fixed; bottom: 16px; left: 16px; z-index: 30; width: 280px; display: none; background: rgba(12,22,16,0.96); border: 2px solid #3a6a48; border-radius: 12px; padding: 14px; text-align: center; }
+    .result-popup.show { display: block; }
+    .result-popup.success { border-color: #a8d8b0; }
+    .result-popup.badge-together { z-index: 210; }
+    .result-icon { font-size: 26px; margin-bottom: 4px; }
+    .result-title { font-size: 13px; font-weight: bold; margin-bottom: 4px; }
+    .result-desc { font-size: 11px; color: #aaa; line-height: 1.5; margin-bottom: 8px; white-space: pre-line; }
+    .result-close { background: #3a6a48; color: #fff; border: none; padding: 5px 18px; border-radius: 12px; font-size: 11px; cursor: pointer; }
+    .scene-nav { position: fixed; top: 14px; left: 50%; transform: translateX(-50%); z-index: 12; display: flex; gap: 6px; background: rgba(10,18,14,0.8); padding: 5px 8px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.15); }
+    .scene-nav button { background: transparent; border: none; color: #bbb; font-size: 11px; padding: 5px 12px; border-radius: 14px; cursor: pointer; white-space: nowrap; }
+    .scene-nav button.active { background: #3a6a48; color: #fff; font-weight: bold; }
+    .scene-nav button:hover:not(.active) { color: #fff; background: rgba(255,255,255,0.1); }
+    #sceneLoading { position: fixed; inset: 0; z-index: 50; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,0.55); font-size: 13px; color: #a8d8b0; }
+    #sceneLoading.show { display: flex; flex-direction: column; gap: 8px; }
+    #loadProgress { font-size: 11px; color: #c0d8c0; }
+    #protocolWarn { position: fixed; inset: 0; z-index: 200; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,0.82); padding: 24px; }
+    #protocolWarn.show { display: flex; }
+    #protocolWarn .warn-box { max-width: 460px; background: #1a3020; border: 2px solid #c44; border-radius: 14px; padding: 22px 24px; text-align: center; line-height: 1.7; }
+    #protocolWarn h3 { color: #ffb4b4; margin-bottom: 10px; font-size: 16px; }
+    #protocolWarn p { color: #f0d8d8; font-size: 13px; }
+    #introOverlay {
+      position: fixed; inset: 0; z-index: 60; display: none;
+      align-items: center; justify-content: center;
+      background: linear-gradient(165deg, rgba(14,28,18,0.97), rgba(6,14,10,0.99));
+      padding: 28px 20px;
+    }
+    #introOverlay.show { display: flex; }
+    .intro-panel {
+      width: min(720px, 94vw); max-height: 82vh; overflow-y: auto;
+      background: rgba(12,22,16,0.92); border: 2px solid #3a6a48;
+      border-radius: 18px; padding: 28px 32px;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.45);
+    }
+    .intro-panel h2 { font-size: 20px; color: #c8e8c0; margin-bottom: 6px; letter-spacing: 2px; }
+    .intro-panel .intro-sub { font-size: 11px; color: #8ab898; margin-bottom: 18px; }
+    .intro-panel .intro-text {
+      font-size: 14px; line-height: 1.85; color: #d8e8d8;
+      text-align: justify; min-height: 200px;
+    }
+    .intro-skip {
+      position: fixed; top: 18px; right: 18px; z-index: 61;
+      background: rgba(50,90,60,0.88); border: 1px solid rgba(160,210,170,0.35);
+      color: #fff; padding: 8px 18px; border-radius: 20px;
+      font-size: 12px; cursor: pointer; display: none;
+    }
+    .intro-skip.show { display: block; }
+    .intro-skip:hover { background: #3a6a48; }
+    body.intro-active .scene-nav,
+    body.intro-active .mini-panel,
+    body.intro-active .top-tag,
+    body.intro-active .back-link,
+    body.intro-active .audio-btn { opacity: 0.15; pointer-events: none; }
+    #hiddenOverlay {
+      position: fixed; inset: 0; z-index: 220; display: none;
+      align-items: center; justify-content: center;
+      background: linear-gradient(165deg, rgba(10,22,14,0.97), rgba(6,12,8,0.99));
+      padding: 28px 20px;
+    }
+    #hiddenOverlay.show { display: flex; }
+    .hidden-panel {
+      width: min(720px, 94vw); max-height: 82vh; overflow-y: auto;
+      background: rgba(10,20,14,0.94); border: 2px solid #4a7a58;
+      border-radius: 18px; padding: 28px 32px;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+    }
+    .hidden-panel h2 { font-size: 18px; color: #c8e8c0; margin-bottom: 6px; }
+    .hidden-panel .hidden-unlock { font-size: 11px; color: #8ab898; margin-bottom: 14px; }
+    .hidden-panel .hidden-text {
+      font-size: 14px; line-height: 1.85; color: #d8e8d8;
+      text-align: justify; min-height: 180px;
+      white-space: pre-line;
+    }
+    .hidden-skip {
+      position: fixed; top: 18px; right: 18px; z-index: 240;
+      background: rgba(50,90,60,0.9); border: 1px solid rgba(160,210,170,0.35);
+      color: #fff; padding: 8px 18px; border-radius: 20px;
+      font-size: 12px; cursor: pointer; display: none;
+    }
+    .hidden-skip.show { display: block; }
+    .hidden-skip:hover { background: #3a6a48; }
+    body.hidden-active .scene-nav,
+    body.hidden-active .mini-panel,
+    body.hidden-active .top-tag,
+    body.hidden-active .back-link,
+    body.hidden-active .audio-btn { opacity: 0.15; pointer-events: none; }
+    #finaleOverlay {
+      position: fixed; inset: 0; z-index: 230; display: none;
+      align-items: center; justify-content: center;
+      background: linear-gradient(165deg, rgba(8,18,12,0.98), rgba(4,10,6,0.99));
+      padding: 28px 20px;
+    }
+    #finaleOverlay.show { display: flex; }
+    #finaleOverlay.finale-historic {
+      background: linear-gradient(180deg,
+        #ddd0b0 0%, #cfc0a0 18%, #c0b090 38%,
+        #b0a080 58%, #9a8a6a 78%, #8a7a5a 100%);
+    }
+    #finaleOverlay.finale-historic::before {
+      content: '';
+      position: absolute; inset: 0;
+      background:
+        radial-gradient(ellipse 80% 50% at 50% 25%, rgba(255,250,235,0.55) 0%, transparent 70%),
+        radial-gradient(ellipse 60% 40% at 40% 65%, rgba(245,238,220,0.4) 0%, transparent 55%),
+        radial-gradient(ellipse 50% 35% at 70% 50%, rgba(240,232,210,0.35) 0%, transparent 50%);
+      pointer-events: none;
+    }
+    #finaleOverlay.finale-historic::after {
+      content: '';
+      position: absolute; inset: 0;
+      background: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none; opacity: 0.6;
+    }
+    .finale-panel {
+      width: min(680px, 94vw); max-height: 88vh; overflow-y: auto;
+      text-align: center; padding: 12px 8px 24px;
+    }
+    .finale-panel h2 {
+      font-size: 22px; color: #d8f0d0; margin-bottom: 8px;
+      letter-spacing: 3px; opacity: 0;
+      transition: opacity 1.4s ease;
+    }
+    .finale-panel h2.show { opacity: 1; }
+    .finale-panel .finale-sub {
+      font-size: 12px; color: #8ab898; margin-bottom: 32px;
+      opacity: 0; transition: opacity 1.2s ease;
+    }
+    .finale-panel .finale-sub.show { opacity: 1; }
+    .finale-line {
+      font-size: 15px; line-height: 2; color: #d8e8d8;
+      margin-bottom: 6px; opacity: 0; transform: translateY(14px);
+      transition: opacity 1.3s ease, transform 1.3s ease;
+    }
+    .finale-line.show { opacity: 1; transform: translateY(0); }
+    .finale-line.emphasis { color: #c8e8c0; font-size: 16px; margin-top: 10px; }
+    .finale-btn {
+      margin-top: 36px; padding: 12px 32px;
+      background: linear-gradient(135deg, #3a6a48, #2a5038);
+      border: 1px solid rgba(180,220,180,0.4); color: #fff;
+      border-radius: 24px; font-size: 14px; cursor: pointer;
+      letter-spacing: 2px; opacity: 0; transform: translateY(10px);
+      transition: opacity 1s ease, transform 1s ease, background 0.2s;
+    }
+    .finale-btn.show { opacity: 1; transform: translateY(0); }
+    .finale-btn:hover { background: linear-gradient(135deg, #4a7a58, #3a6048); }
+    .finale-page { width: 100%; }
+    .finale-page2 { display: none; text-align: left; }
+    .finale-page2.active { display: block; }
+    .finale-page3 { display: none; text-align: center; }
+    .finale-page3.active { display: block; }
+    .finale-page4 { display: none; text-align: center; position: relative; z-index: 1; }
+    .finale-page4.active { display: block; }
+    .finale-page1.hidden { display: none; }
+    .finale-page2-title {
+      font-size: 20px; color: #d8f0d0; text-align: center;
+      margin-bottom: 16px; letter-spacing: 3px;
+      opacity: 0; transition: opacity 1.2s ease;
+    }
+    .finale-page2-title.show { opacity: 1; }
+    .finale-scroll {
+      background: linear-gradient(180deg, #f8edd4 0%, #ebe0c4 50%, #e2d4b0 100%);
+      color: #3a3020;
+      border: 1px solid #c8b080;
+      border-radius: 3px;
+      padding: 28px 30px 32px;
+      box-shadow: inset 0 0 50px rgba(120,90,40,0.12), 0 10px 36px rgba(0,0,0,0.28);
+      font-family: "Songti SC", "SimSun", "STSong", serif;
+      max-height: 72vh;
+      overflow-y: auto;
+    }
+    .finale-scroll .doc-title {
+      font-size: 18px; color: #5a3020; text-align: center;
+      margin-bottom: 18px; letter-spacing: 4px; font-weight: bold;
+      border-bottom: 1px solid rgba(90,48,32,0.25); padding-bottom: 12px;
+    }
+    .finale-scroll .doc-preface {
+      font-size: 13px; line-height: 1.85; color: #4a3a28;
+      margin-bottom: 20px; text-indent: 2em;
+    }
+    .finale-scroll .doc-section {
+      font-size: 14px; color: #6a3020; font-weight: bold;
+      margin: 18px 0 10px; letter-spacing: 1px;
+    }
+    .finale-scroll .doc-entry {
+      font-size: 13px; line-height: 1.85; color: #3a3020;
+      margin-bottom: 14px; text-indent: 2em;
+    }
+    .finale-scroll .doc-note {
+      font-size: 12px; line-height: 1.8; color: #5a4a38;
+      margin: 16px 0; padding: 10px 12px;
+      background: rgba(120,90,50,0.08); border-left: 3px solid #a08060;
+      text-indent: 0;
+    }
+    .finale-scroll .doc-quote {
+      font-size: 13px; line-height: 1.85; color: #4a3a28;
+      margin: 14px 0; padding-left: 16px;
+      border-left: 2px solid #a08060; font-style: italic;
+    }
+    .finale-scroll .doc-table-wrap {
+      overflow-x: auto; margin: 12px 0 18px;
+      border: 1px solid rgba(90,48,32,0.28);
+      background: rgba(255,250,235,0.55);
+    }
+    .finale-scroll .doc-table {
+      width: 100%; border-collapse: collapse;
+      font-size: 12px; line-height: 1.55; color: #3a3020;
+      min-width: 640px;
+    }
+    .finale-scroll .doc-table th,
+    .finale-scroll .doc-table td {
+      border: 1px solid rgba(90,48,32,0.22);
+      padding: 8px 10px; text-align: left; vertical-align: top;
+    }
+    .finale-scroll .doc-table th {
+      background: rgba(120,90,50,0.14); color: #5a3020;
+      font-weight: bold; white-space: nowrap;
+    }
+    .finale-achievement {
+      display: inline-block; margin-bottom: 14px;
+      font-size: 12px; color: #FFD700;
+      border: 1px solid rgba(255,215,0,0.4); border-radius: 12px;
+      padding: 4px 12px; letter-spacing: 1px;
+      opacity: 0; transition: opacity 1s ease;
+    }
+    .finale-achievement.show { opacity: 1; }
+    .hidden-panel .hidden-badge-tag {
+      display: inline-block; font-size: 10px; color: #FFD700;
+      border: 1px solid rgba(255,215,0,0.45); border-radius: 10px;
+      padding: 3px 10px; margin-bottom: 12px;
+    }
+    .hidden-panel h3 {
+      font-size: 14px; color: #a8d0a0; margin: 14px 0 8px;
+    }
+    .hidden-panel .hidden-text {
+      white-space: pre-wrap;
+    }
+    .hidden-panel .hidden-text .intro-cursor {
+      display: inline-block; width: 2px; height: 1em;
+      background: #c8e8c0; margin-left: 2px; vertical-align: text-bottom;
+      animation: introBlink 0.9s step-end infinite;
+    }
+    @keyframes introBlink { 50% { opacity: 0; } }
+    .hidden-hint { font-size: 11px; color: #7a9a80; text-align: center; margin-top: 14px; }
+    .hidden-skip-inpanel {
+      display: block; margin: 14px auto 0; background: transparent;
+      border: 1px solid rgba(255,255,255,0.22); color: #aaa;
+      padding: 6px 16px; border-radius: 12px; font-size: 11px; cursor: pointer;
+    }
+    .hidden-skip-inpanel:hover { color: #fff; border-color: rgba(255,255,255,0.45); }
+    .finale-doc-block {
+      opacity: 0; transform: translateY(10px);
+      transition: opacity 1.1s ease, transform 1.1s ease;
+    }
+    .finale-doc-block.show { opacity: 1; transform: translateY(0); }
+    .finale-page2 .finale-btn { display: block; margin: 24px auto 0; }
+    .finale-page3-title {
+      font-size: 20px; color: #d8f0d0; margin-bottom: 28px;
+      letter-spacing: 3px; opacity: 0; transition: opacity 1.2s ease;
+    }
+    .finale-page3-title.show { opacity: 1; }
+    .finale-marshal-quote {
+      font-size: 26px; line-height: 1.6; color: #e8d8a0;
+      margin: 0 auto 12px; max-width: 560px;
+      font-weight: bold; letter-spacing: 2px;
+      opacity: 0; transform: translateY(16px);
+      transition: opacity 1.4s ease, transform 1.4s ease;
+    }
+    .finale-marshal-quote.show { opacity: 1; transform: translateY(0); }
+    .finale-marshal-attrib {
+      font-size: 13px; color: #8ab898; margin-bottom: 36px;
+      opacity: 0; transition: opacity 1.1s ease;
+    }
+    .finale-marshal-attrib.show { opacity: 1; }
+    .finale-page3-line {
+      font-size: 14px; line-height: 2; color: #d0e0d0;
+      margin: 0 auto 10px; max-width: 580px; text-align: justify;
+      opacity: 0; transform: translateY(12px);
+      transition: opacity 1.2s ease, transform 1.2s ease;
+    }
+    .finale-page3-line.show { opacity: 1; transform: translateY(0); }
+    .finale-page3-line.emphasis {
+      color: #c8e8c0; font-size: 15px; margin-top: 18px;
+      text-align: center; line-height: 1.9;
+    }
+    .finale-page3 .finale-btn { display: block; margin: 32px auto 0; }
+    .finale-page4-title {
+      font-size: 20px; color: #4a3828; margin-bottom: 32px;
+      letter-spacing: 4px; font-family: "Songti SC", "SimSun", serif;
+      opacity: 0; transition: opacity 1.3s ease;
+    }
+    .finale-page4-title.show { opacity: 1; }
+    .finale-page4-line {
+      font-size: 15px; line-height: 2.1; color: #3a2e22;
+      margin: 0 auto 14px; max-width: 560px;
+      font-family: "Songti SC", "SimSun", "STSong", serif;
+      opacity: 0; transform: translateY(14px);
+      transition: opacity 1.4s ease, transform 1.4s ease;
+    }
+    .finale-page4-line.show { opacity: 1; transform: translateY(0); }
+    .finale-page4-line.date {
+      font-size: 16px; color: #4a3828; font-weight: bold;
+      letter-spacing: 1px; margin-bottom: 22px;
+    }
+    .finale-page4-line.mist { color: #4a3a30; font-style: italic; }
+    .finale-page4-line.emphasis {
+      font-size: 17px; color: #2a2018; font-weight: bold;
+      margin-top: 24px; letter-spacing: 2px;
+    }
+    .finale-page4 .finale-btn {
+      display: block; margin: 36px auto 0;
+      background: linear-gradient(135deg, #7a6a50, #5a4a38);
+      border-color: rgba(90,70,50,0.5);
+    }
+    .finale-page4 .finale-btn:hover { background: linear-gradient(135deg, #8a7a60, #6a5a48); }
+    #finaleOverlay.finale-letter {
+      background: linear-gradient(180deg, #1e1c18 0%, #141210 50%, #0e0c0a 100%);
+    }
+    #finaleOverlay.finale-letter::before,
+    #finaleOverlay.finale-letter::after { display: none; }
+    .finale-page5 { display: none; text-align: center; position: relative; z-index: 1; }
+    .finale-page5.active { display: block; }
+    .finale-page5-title {
+      font-size: 20px; color: #d8e8d0; margin-bottom: 28px;
+      letter-spacing: 4px; opacity: 0; transition: opacity 1.2s ease;
+    }
+    .finale-page5-title.show { opacity: 1; }
+    .finale-page5-line {
+      font-size: 15px; line-height: 2; color: #c8d8c8;
+      margin: 0 auto 10px; max-width: 480px;
+      opacity: 0; transform: translateY(12px);
+      transition: opacity 1.2s ease, transform 1.2s ease;
+    }
+    .finale-page5-line.show { opacity: 1; transform: translateY(0); }
+    .finale-page5-line.ask {
+      color: #e8f0e0; font-size: 16px; margin-top: 18px; margin-bottom: 24px;
+    }
+    .finale-name-form {
+      opacity: 0; transform: translateY(10px);
+      transition: opacity 1s ease, transform 1s ease;
+    }
+    .finale-name-form.show { opacity: 1; transform: translateY(0); }
+    .finale-name-form input {
+      display: block; width: min(320px, 80vw); margin: 0 auto 18px;
+      padding: 12px 18px; font-size: 16px; text-align: center;
+      background: rgba(255,252,240,0.95); border: 2px solid #8a7a60;
+      border-radius: 8px; color: #3a2e22;
+      font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+      outline: none;
+    }
+    .finale-name-form input:focus { border-color: #a89878; box-shadow: 0 0 12px rgba(200,180,140,0.3); }
+    .finale-name-form input::placeholder { color: #9a8a78; }
+    #finalePage5Input.hidden { display: none; }
+    .finale-letter-card {
+      max-width: 580px; margin: 0 auto; padding: 32px 36px 28px;
+      background: linear-gradient(180deg, #f8f0dc 0%, #efe4cc 100%);
+      border: 1px solid #c8b898; border-radius: 4px;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.35), inset 0 0 30px rgba(120,90,50,0.06);
+      text-align: left;
+    }
+    .finale-letter-card.hidden { display: none; }
+    .finale-letter-salute {
+      font-size: 16px; color: #3a2e22; font-weight: bold;
+      margin-bottom: 20px; font-family: "Songti SC", "SimSun", serif;
+      opacity: 0; transition: opacity 1.1s ease;
+    }
+    .finale-letter-salute.show { opacity: 1; }
+    .finale-letter-salute span { color: #6a3020; border-bottom: 1px solid #a08060; padding: 0 4px; }
+    .finale-letter-line {
+      font-size: 14px; line-height: 2; color: #3a3020;
+      margin-bottom: 8px; text-indent: 2em;
+      font-family: "Songti SC", "SimSun", serif;
+      opacity: 0; transform: translateY(10px);
+      transition: opacity 1.1s ease, transform 1.1s ease;
+    }
+    .finale-letter-line.show { opacity: 1; transform: translateY(0); }
+    .finale-letter-line.quote { text-indent: 0; padding-left: 1em; font-style: italic; color: #4a3828; }
+    .finale-letter-close {
+      font-size: 14px; color: #3a3020; margin: 20px 0 6px;
+      font-family: "Songti SC", "SimSun", serif;
+      opacity: 0; transition: opacity 1s ease;
+    }
+    .finale-letter-close.show { opacity: 1; }
+    .finale-letter-sign {
+      font-size: 14px; color: #4a3828; text-align: right;
+      margin-bottom: 8px; letter-spacing: 1px;
+      font-family: "Songti SC", "SimSun", serif;
+      opacity: 0; transition: opacity 1s ease;
+    }
+    .finale-letter-sign.show { opacity: 1; }
+    .finale-page5 .finale-btn { margin-top: 24px; }
+    .finale-page5 #finaleNameSubmitBtn {
+      display: block;
+      margin: 8px auto 0;
+      opacity: 1;
+      transform: none;
+      background: #ffffff;
+      color: #2a3828;
+      border: 1px solid rgba(255,255,255,0.95);
+      box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+    }
+    .finale-page5 #finaleNameSubmitBtn:hover {
+      background: #f8f8f8;
+      color: #1a2820;
+    }
+    #finaleOverlay.finale-epilogue {
+      background: linear-gradient(180deg, #1a2428 0%, #141c20 40%, #101820 100%);
+    }
+    #finaleOverlay.finale-epilogue::before,
+    #finaleOverlay.finale-epilogue::after { display: none; }
+    .finale-page6 { display: none; text-align: center; position: relative; z-index: 1; }
+    .finale-page6.active { display: block; }
+    .finale-page6-title {
+      font-size: 18px; color: #b8d0e0; margin-bottom: 8px;
+      letter-spacing: 2px; opacity: 0; transition: opacity 1.2s ease;
+    }
+    .finale-page6-title.show { opacity: 1; }
+    .finale-page6-tag {
+      font-size: 12px; color: #7a9aaa; margin-bottom: 28px;
+      opacity: 0; transition: opacity 1s ease;
+    }
+    .finale-page6-tag.show { opacity: 1; }
+    .finale-page6-quote {
+      max-width: 580px; margin: 0 auto; padding: 0 12px;
+      text-align: left;
+    }
+    .finale-page6-line {
+      font-size: 15px; line-height: 2.1; color: #d8e8f0;
+      margin-bottom: 16px; font-style: italic;
+      opacity: 0; transform: translateY(12px);
+      transition: opacity 1.3s ease, transform 1.3s ease;
+    }
+    .finale-page6-line.show { opacity: 1; transform: translateY(0); }
+    .finale-page6-line.open { font-size: 16px; color: #e8f4f8; }
+    .finale-page6-line.close { color: #c8dce8; margin-top: 8px; }
+    .finale-page6-closing {
+      font-size: 15px; line-height: 2.2; color: #a8c8d8;
+      margin: 32px auto 8px; max-width: 480px;
+      opacity: 0; transform: translateY(10px);
+      transition: opacity 1.8s ease, transform 1.8s ease;
+    }
+    .finale-page6-closing.show { opacity: 1; transform: translateY(0); }
+    .finale-page6-closing.final {
+      font-size: 17px; color: #d8f0f8; letter-spacing: 2px;
+      margin-top: 12px; margin-bottom: 8px;
+    }
+    .finale-page6 .finale-btn { margin-top: 28px; }
+    body.finale-active .scene-nav,
+    body.finale-active .mini-panel,
+    body.finale-active .top-tag,
+    body.finale-active .back-link,
+    body.finale-active .audio-btn { opacity: 0.12; pointer-events: none; }
+  </style>
+  <link rel="stylesheet" href="assets/badge-reveal.css" />
+</head>
+<body>
+<div id="introOverlay">
+  <div class="intro-panel">
+    <h2>英雄山</h2>
+    <div class="intro-sub">历史背景 · 红色教育路线</div>
+    <div class="intro-text" id="introText"></div>
+  </div>
+</div>
+<button class="intro-skip" id="introSkipBtn" type="button" onclick="skipIntroReading()">跳过朗读</button>
+
+<div id="hiddenOverlay">
+  <div class="hidden-panel">
+    <div class="hidden-badge-tag">🔓 隐藏篇章已解锁 · 英雄致敬人</div>
+    <h2>隐藏篇章：《34 位妙峰山籍烈士列传》</h2>
+    <div class="hidden-unlock">解锁条件：获得「英雄致敬人」徽章</div>
+    <div class="hidden-text" id="hiddenText"></div>
+    <div class="hidden-hint" id="hiddenHint">深度阅读中…</div>
+    <button type="button" class="hidden-skip-inpanel" id="hiddenSkipBtn" onclick="skipHiddenReading()">跳过朗读</button>
+  </div>
+</div>
+<button class="hidden-skip" id="finaleSkipBtn" type="button" onclick="skipFinaleReading()">跳过朗读</button>
+
+<div id="finaleOverlay">
+  <div class="finale-panel finale-page1" id="finalePage1">
+    <div class="finale-achievement" id="finaleAchievement">🏆 最终成就：信仰的见证</div>
+    <h2 id="finaleTitle">终章 · 终点即起点</h2>
+    <div class="finale-sub" id="finaleSub">集齐最后一枚徽章的瞬间——</div>
+    <div id="finaleLines">
+      <p class="finale-line">你走完了这条路。</p>
+      <p class="finale-line">从福兴商号的杂货铺，到后山那个站不直身的山洞；</p>
+      <p class="finale-line">从古香道的石板路，到初心广场的浮雕墙；</p>
+      <p class="finale-line">从梁波站长的墓碑，到妙峰山顶的纪念碑。</p>
+      <p class="finale-line">五处地点，五枚徽章。但你知道 ——</p>
+      <p class="finale-line">这五处地点背后，是近一百个隐姓埋名的身影；</p>
+      <p class="finale-line">这五枚徽章背后，是八千余份情报、十位牺牲者、三十四位烈士。</p>
+      <p class="finale-line emphasis">你拿到的不是徽章，是历史的碎片。</p>
+      <p class="finale-line emphasis">你拼出的不是图案，是信仰的真相。</p>
+    </div>
+    <button class="finale-btn" id="finaleRevealBtn" type="button" onclick="revealFinalHistory()">揭开最后的历史</button>
+  </div>
+  <div class="finale-panel finale-page2" id="finalePage2">
+    <h2 class="finale-page2-title" id="finalePage2Title">终章 · 牺牲者</h2>
+    <div class="finale-scroll" id="finaleScroll">
+      <div class="finale-doc-block doc-title">平西情报联络站牺牲人员名录</div>
+      <p class="finale-doc-block doc-preface">以下名单根据晋察冀社会部档案、妙峰山地区烈士名录及走访口述整理。先后有近百名革命者在此工作过，其中十多位牺牲在工作岗位上，成为革命烈士。许多隐蔽战线工作者使用化名，真实姓名至今未能完全确认。</p>
+      <div class="finale-doc-block doc-section">已确认身份的烈士</div>
+      <div class="finale-doc-block doc-table-wrap">
+        <table class="doc-table">
+          <thead>
+            <tr>
+              <th>姓名</th>
+              <th>化名 / 曾用名</th>
+              <th>职务</th>
+              <th>牺牲时间</th>
+              <th>牺牲年龄</th>
+              <th>牺牲经过</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>贾练</td>
+              <td>刘吉年、刘迪刚、王焕章</td>
+              <td>平西情报联络站站长</td>
+              <td>1943 年 5 月</td>
+              <td>34 岁</td>
+              <td>1941 年以贾练为化名出任站长。1942 年带队在北安河以东执行任务返回途中，于海淀鹫峰遭遇日伪军包围，突围时腿部负伤，回晋察冀军区一分区养伤。1943 年 5 月，日寇扫荡中牺牲于易县狼牙山</td>
+            </tr>
+            <tr>
+              <td>梁波</td>
+              <td>—</td>
+              <td>平西情报联络站第三任站长</td>
+              <td>1947 年 9 月</td>
+              <td>37 岁</td>
+              <td>在妙峰山执行接头任务后遭敌包围，因拒不投降被杀害。遗体最初安葬于妙峰山英雄山，1953 年移葬八宝山革命公墓</td>
+            </tr>
+            <tr>
+              <td>赵万庆</td>
+              <td>—</td>
+              <td>交通员 / 向导</td>
+              <td>1937 年 10 月</td>
+              <td>—</td>
+              <td>妙峰山下涧沟村人，以邮差身份作掩护。1937 年 10 月为国民抗日军担任向导，在妙峰山金顶遭日军飞机轰炸牺牲，是门头沟区革命史上记载的第一位烈士</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="finale-doc-block doc-note">注：此外，在平西情报联络站先后工作的近百人中，还有十多位牺牲者。由于隐蔽战线工作的特殊性质，许多人的化名和真实姓名至今未能完全考证。</p>
+      <div class="finale-doc-block doc-section">“无名的牺牲”</div>
+      <p class="finale-doc-block doc-entry">在妙峰山革命烈士纪念碑上，刻有 34 颗红色五角星，代表为革命解放事业英勇献身的 34 位妙峰山籍烈士。其中，有多位牺牲于平西情报联络站相关工作，因隐蔽战线的特殊性，他们的真实姓名已无从考证。</p>
+      <p class="finale-doc-block doc-quote">“苏静同志是一个化名。当时隐蔽战线有很多同志都是化名的，真实的姓名和事迹不为人所知。”</p>
+      <p class="finale-doc-block doc-attrib">—— 平西情报联络站运营负责人</p>
+    </div>
+    <button class="finale-btn" id="finalePage2Btn" type="button" onclick="goFinalePage3()">继续 →</button>
+  </div>
+  <div class="finale-panel finale-page3" id="finalePage3">
+    <h2 class="finale-page3-title" id="finalePage3Title">终章 · 抵得上十万兵马</h2>
+    <p class="finale-marshal-quote" id="finaleMarshalQuote">"我们的情报组织抵得上十万兵马！"</p>
+    <p class="finale-marshal-attrib" id="finaleMarshalAttrib">—— 聂荣臻元帅对平西情报联络站的评价</p>
+    <div id="finalePage3Lines">
+      <p class="finale-page3-line">1947 年，王文、王凤岐夫妇利用潜伏在北平的秘密电台，发出了一封至关重要的密电。这封密电经平西情报联络站转送晋察冀军区，为华北战场取得胜利起到了决定性作用。</p>
+      <p class="finale-page3-line">晋察冀部队据此发动了著名的清风店战役，歼灭国民党第三军一万七千余人。战后，聂荣臻元帅对这支隐姓埋名的情报队伍，说出了这句话。</p>
+      <p class="finale-page3-line emphasis">"抵得上十万兵马" 的，不是一百个人，是这一百个人背后的一千种坚持、一万次发报、十万次穿行于生死之间的脚步。</p>
+    </div>
+    <button class="finale-btn" id="finalePage3Btn" type="button" onclick="goFinalePage4()">继续 →</button>
+  </div>
+  <div class="finale-panel finale-page4" id="finalePage4">
+    <h2 class="finale-page4-title" id="finalePage4Title">终章 · 从未离开</h2>
+    <div id="finalePage4Lines">
+      <p class="finale-page4-line date">1949 年 1 月 31 日，北平和平解放。</p>
+      <p class="finale-page4-line mist">涧沟村的老百姓说，那天山上起了大雾，雾里像是有人影。</p>
+      <p class="finale-page4-line">有人说是梁站长回来了，有人说是苏静在山洞发报，有人说是交通员们推着独轮车走过了古香道。</p>
+      <p class="finale-page4-line">其实不是他们回来了。</p>
+      <p class="finale-page4-line emphasis">是他们从未离开过这座山。</p>
+    </div>
+    <button class="finale-btn" id="finalePage4Btn" type="button" onclick="goFinalePage5()">继续 →</button>
+  </div>
+  <div class="finale-panel finale-page5" id="finalePage5">
+    <div id="finalePage5Input">
+      <h2 class="finale-page5-title" id="finalePage5Title">终章 · 你的名字</h2>
+      <div id="finalePage5Prompt">
+        <p class="finale-page5-line">五枚徽章已全部集齐。</p>
+        <p class="finale-page5-line">你看过了他们的故事，走过了他们的路。</p>
+        <p class="finale-page5-line ask">现在，请留下你的名字 ——</p>
+      </div>
+      <div class="finale-name-form" id="finaleNameForm">
+        <input type="text" id="finaleNameInput" maxlength="20" placeholder="请输入你的名字" autocomplete="name" />
+        <button class="finale-btn" id="finaleNameSubmitBtn" type="button" onclick="submitFinaleName()">确认</button>
+      </div>
+    </div>
+    <div id="finalePage5Letter" class="finale-letter-card hidden">
+      <p class="finale-letter-salute" id="finaleLetterSalute">致 <span id="finaleNameDisplay"></span>：</p>
+      <div id="finaleLetterLines">
+        <p class="finale-letter-line">你已完成 "信仰的见证" 全部旅程。</p>
+        <p class="finale-letter-line">五个点位，五段历史，八十余载光阴。</p>
+        <p class="finale-letter-line">你走过的每一步，都有人曾用生命走过。</p>
+        <p class="finale-letter-line">愿你记得 ——</p>
+        <p class="finale-letter-line quote">在妙峰山的山风里，有一群人的名字叫 "无名"；</p>
+        <p class="finale-letter-line quote">在涧沟村的夜色中，有一种信仰叫 "胜利之前绝不撤退"。</p>
+      </div>
+      <p class="finale-letter-close" id="finaleLetterClose">此致。</p>
+      <p class="finale-letter-sign" id="finaleLetterSign">平西情报联络站・全体无名英雄</p>
+      <button class="finale-btn" id="finalePage5Btn" type="button" onclick="goFinalePage6()">继续 →</button>
+    </div>
+  </div>
+  <div class="finale-panel finale-page6" id="finalePage6">
+    <h2 class="finale-page6-title" id="finalePage6Title">彩蛋 · 林迈可的最后一句话</h2>
+    <p class="finale-page6-tag" id="finalePage6Tag">林迈可晚年回忆</p>
+    <div class="finale-page6-quote" id="finalePage6Quote">
+      <p class="finale-page6-line open">"我在中国度过了最有意义的岁月。那些和我一起工作的中国同志，他们中许多人没有受过高等教育，甚至没有读过多少书，但他们有一种我从未见过的坚定 —— 他们相信，他们的孩子会生活在一个更好的中国。</p>
+      <p class="finale-page6-line">现在，他们的孩子确实生活在一个更好的中国。</p>
+      <p class="finale-page6-line close">这就够了。"</p>
+    </div>
+    <p class="finale-page6-closing" id="finaleClosing1">你的每一次点击，都是一次记得。</p>
+    <p class="finale-page6-closing final" id="finaleClosing2">谢谢你来过这里。</p>
+    <button class="finale-btn" id="finaleFinishBtn" type="button" onclick="finishFinaleJourney()">完成缅怀</button>
+  </div>
+</div>
+
+<div id="canvas-container"></div>
+<div id="sceneLoading"><span id="loadTitle">加载英雄山场景…</span><div id="loadProgress"></div></div>
+
+<div id="protocolWarn">
+  <div class="warn-box">
+    <h3>⚠️ 请用 Live Server 打开</h3>
+    <p>不能直接双击打开 HTML 文件。<br>请右键 <b>yingxiongshan.html</b> → <b>Open with Live Server</b><br>访问 <b>http://localhost:5500/yingxiongshan.html</b></p>
+  </div>
+</div>
+
+<div class="top-tag" id="topTag">⛰️ 英雄山 · 最后的抉择</div>
+<button class="audio-btn" id="audioBtn" onclick="toggleAudio()">🔊</button>
+
+<nav class="scene-nav" id="sceneNav">
+  <button data-scene="1" onclick="switchScene(1)">场景一·上山</button>
+  <button data-scene="2" onclick="switchScene(2)">场景二·纪念碑</button>
+  <button data-scene="3" onclick="switchScene(3)">场景三·回望</button>
+</nav>
+
+<div class="mini-panel">
+  <div class="mini-year" id="miniYear">1947</div>
+  <div class="mini-title" id="miniTitle">上山</div>
+  <div class="mini-dialogue" id="miniDialogue">等待剧情…</div>
+</div>
+
+<div class="narration-bar" id="narrationBar"></div>
+
+<div class="choice-overlay" id="choiceModal">
+  <div class="choice-modal">
+    <h3 id="choiceTitle">你的选择</h3>
+    <p class="prompt" id="choicePrompt"></p>
+    <div id="choiceBtns"></div>
+  </div>
+</div>
+
+<div class="result-popup" id="resultPopup">
+  <div class="result-icon" id="resultIcon">✅</div>
+  <div class="result-title" id="resultTitle">任务成功</div>
+  <div class="result-desc" id="resultDesc"></div>
+  <button class="result-close" onclick="closeResult()">继续</button>
+</div>
+
+<script src="assets/badge-reveal.js"></script>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+const BADGE_KEY = 'yingxiong_badges_v1';
+const HIDDEN_SEEN_KEY = 'yingxiong_hidden_seen_v1';
+const FINALE_SEEN_KEY = 'yingxiong_finale1_seen_v1';
+const GROUND_Y = 0;
+
+function returnToCheckin() {
+  const params = new URLSearchParams(window.location.search);
+  const spotId = params.get('spot') || '';
+  try {
+    if (window.parent && window.parent !== window) {
+      window.parent.postMessage({ type: 'jiankou-scene-complete', spotId: spotId }, '*');
+      return;
+    }
+  } catch (e) {}
+  try { sessionStorage.setItem('jiankouCompletedSpot', spotId); } catch (e) {}
+  window.location.href = new URL('../index.html', window.location.href).href;
+}
+
+// 场景一/三：台阶 + 两侧土质坡 + 远山 + 大树
+// 场景二：jinianbei.glb 近距离，视角下调
+
+const MODEL_CANDIDATES = {
+  jinianbei: ['models/yingxiongshan/jinianbei.glb'],
+};
+
+const INTRO_TEXT =
+  '英雄山位于初心广场上方的山坡上，是缅怀革命先烈的庄严场所。山上安葬着第三任平西情报联络站站长梁波烈士的遗体（后移葬八宝山革命公墓），是纪念这位情报战线英雄的重要地点。' +
+  '山顶还建有妙峰山革命烈士纪念碑，碑体高 1.921 米，象征中国共产党诞生于 1921 年；红色台座象征烈士鲜血；碑身刻有 34 颗红色五角星，代表为革命献身的 34 位妙峰山籍烈士。' +
+  '英雄山与梁波烈士墓旧址、初心广场以及当年连接多条古香道的 "情报小路" 共同构成了一条完整的红色教育路线，让每一位到访者在缅怀先烈的同时，深刻感受到这片土地上承载的英雄记忆。' +
+  '据统计，在平西情报联络站工作的人员中，先后有 10 人为革命事业献出了生命，他们中有许多因工作性质特殊而未能留下姓名，成为隐蔽战线上默默无闻的无名英雄。';
+
+const NARRATION_MP3 = {
+  intro:  'audio/yingxiongshan/intro.mp3',
+  scene1: 'audio/yingxiongshan/scene1.mp3',
+  scene2: 'audio/yingxiongshan/scene2.mp3',
+  scene3: 'audio/yingxiongshan/scene3.mp3',
+};
+let activeNarrationAudio = null;
+const narrationMp3Cache = {};
+
+function stopNarrationAudio() {
+  if (activeNarrationAudio) {
+    activeNarrationAudio.pause();
+    activeNarrationAudio.currentTime = 0;
+    activeNarrationAudio = null;
+  }
+}
+
+function playDocAudio(key, textFallback, onEnd) {
+  if (!audioOn) { if (onEnd) onEnd(); return; }
+  const src = NARRATION_MP3[key];
+  if (!src) {
+    speakTextFallback(textFallback, onEnd);
+    return;
+  }
+  if (window.speechSynthesis) window.speechSynthesis.cancel();
+  stopNarrationAudio();
+  let audio = narrationMp3Cache[key];
+  if (!audio) {
+    audio = new Audio(src);
+    audio.preload = 'auto';
+    narrationMp3Cache[key] = audio;
+  } else {
+    audio.pause();
+    audio.currentTime = 0;
+  }
+  activeNarrationAudio = audio;
+  const cleanup = () => {
+    audio.removeEventListener('ended', onDone);
+    audio.removeEventListener('error', onFail);
+  };
+  const onDone = () => {
+    cleanup();
+    if (activeNarrationAudio === audio) activeNarrationAudio = null;
+    if (onEnd) onEnd();
+  };
+  const onFail = () => {
+    cleanup();
+    if (activeNarrationAudio === audio) activeNarrationAudio = null;
+    speakTextFallback(textFallback, onEnd);
+  };
+  audio.addEventListener('ended', onDone);
+  audio.addEventListener('error', onFail);
+  audio.play().catch(onFail);
+}
+
+function speakTextFallback(text, onEnd) {
+  if (!audioOn || !text) { if (onEnd) onEnd(); return; }
+  if (window.speechSynthesis) window.speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = 'zh-CN';
+  u.rate = 0.95;
+  u.onend = () => { if (onEnd) onEnd(); };
+  u.onerror = () => { if (onEnd) onEnd(); };
+  window.speechSynthesis.speak(u);
+}
+
+let introActive = false;
+let introFinished = false;
+let introTypeTimer = null;
+let introResolve = null;
+
+const HIDDEN_TEXT =
+  '在平西情报联络站工作的近 100 名工作人员中，先后有 10 人为革命壮烈牺牲。妙峰山革命烈士纪念碑上刻有 34 颗红色五角星，代表为革命献身的 34 位妙峰山籍烈士。\n\n' +
+  '贾练（刘吉年）烈士\n' +
+  '平西情报联络站站长，先后化名贾练、刘迪刚、王焕章。1942 年带队在北安河以东执行任务，返回途中于海淀鹫峰遭遇日伪军包围，突围时腿部负伤，经组织安排回晋察冀军区一分区养伤。1943 年 5 月，日寇扫荡中牺牲于易县狼牙山，年仅 34 岁。\n' +
+  '2025 年，他的孙女刘婷婷在平西情报联络站纪念馆展柜中找到了那张泛黄的 "革命牺牲军人家属光荣纪念证"，落款是 "毛泽东"—— 这张穿越 82 年烽烟的烈士证，承载了家中两代人七十余年的追寻。\n\n' +
+  '无名烈士\n' +
+  '在 34 位妙峰山籍烈士中，有 7 位至今身份未能确认 —— 碑文上只刻着 "无名氏"。正如纪念馆运营负责人所说："苏静同志是一个化名，当时隐蔽战线有很多同志都是化名的，真实的姓名和事迹不为人所知。" 他们用无名换来了一个民族的黎明。';
+
+let hiddenActive = false;
+let hiddenTypeTimer = null;
+let hiddenChapterSkipRequested = false;
+let pendingHiddenChapter = false;
+let finaleActive = false;
+let pendingFinalePage = false;
+let finaleRevealTimer = null;
+
+const LANDSCAPE_CAMERA = {
+  pos: [0, 2.5, 16],
+  look: [0, 16, -58],
+};
+
+const SCENES = {
+  1: {
+    tag: '场景一 · 上山', year: '第三层平台', title: '梁波烈士墓旧址',
+    narration:
+      '你沿着台阶走上英雄山。山路两旁的松柏在风中作响，像是有人在低声说话。' +
+      '第三层平台，是梁波烈士墓旧址。墓碑前摆着几束菊花，花瓣被山风吹得微微颤抖。' +
+      '你站在墓前，看到碑上刻着一行字："梁波（1910-1947），平西情报联络站第三任站长，1947 年 9 月于执行任务途中牺牲。"' +
+      '你想起初心亭里老人说的话："梁站长用命换来的那几页纸，救了很多人。"',
+    prompt: '站在墓前，你如何告慰梁波烈士？',
+    choices: [
+      { label: 'A', text: '献上一束花，深深鞠躬', success: false,
+        result: '❌ 致敬方式不够贴合。错误解释：献花鞠躬是常规敬意，而梁波站长毕生的牵挂是任务完成、革命胜利，最能告慰他的是胜利的消息。请重试。' },
+      { label: 'B', text: '在墓前静立三分钟', success: false,
+        result: '❌ 致敬流于形式。错误解释：静立追思是基础，更重要的是读懂烈士的未竟之志，用胜利的结果告慰英灵。请重试。' },
+      { label: 'C', text: '轻声说了一句话："任务完成了，梁站长。"', success: true,
+        result: '✅ 回答正确！一句 "任务完成了"，是对用生命践行使命的梁波烈士最好的告慰。继续向山顶前进。',
+        speech: '任务完成了，梁站长。' },
+    ],
+    camera: LANDSCAPE_CAMERA,
+    models: [],
+  },
+  2: {
+    tag: '场景二 · 纪念碑前', year: '山顶', title: '妙峰山革命烈士纪念碑',
+    narration:
+      '继续向上，山顶矗立着妙峰山革命烈士纪念碑。' +
+      '你走近细看：碑体高 1.921 米 —— 象征中国共产党诞生于 1921 年；红色台座 —— 象征烈士鲜血；碑身 34 颗红色五角星 —— 代表 34 位妙峰山籍烈士。' +
+      '碑座下方刻着 34 个名字。有些名字旁边有简短的生平："王德厚，1921-1943，22 岁，交通员，送信途中遇伏牺牲。""李桂英，1925-1944，19 岁，卫生员，为掩护伤员转移牺牲。"……' +
+      '你发现，有些名字旁边没有任何注释，只有三个字："无名氏。"',
+    prompt: '面对纪念碑与这些名字，你怎么想？',
+    choices: [
+      { label: 'A', text: '"他们是谁？为什么会没有名字？"', success: false,
+        result: '❌ 理解停留在表面。错误解释：无名是隐蔽战线的工作特点，但更核心的是他们的牺牲换来了最终的胜利。请重试。' },
+      { label: 'B', text: '"34 个人，34 条命，换来的是什么？"', success: true,
+        result: '✅ 回答正确！你读懂了 34 位烈士的牺牲换来了北平和平解放的黎明，真正理解了革命胜利的来之不易。进入最后一个环节。' },
+      { label: 'C', text: '一个一个念出那些名字', success: false,
+        result: '❌ 致敬方式不够深入。错误解释：念出名字是铭记的方式，更重要的是理解他们牺牲的价值与意义。请重试。' },
+    ],
+    camera: { pos: [0, 2.2, 4.5], look: [0, 2.5, 0] },
+    models: ['jinianbei'],
+  },
+  3: {
+    tag: '场景三 · 下山前的回望', year: '今日', title: '回望英雄山',
+    narration:
+      '你走下山坡，回望英雄山。' +
+      '山顶的纪念碑在蓝天白云下格外清晰。你想起了在这里听到的所有故事：苏静的山洞、梁波的坚守、古香道上的独轮车、浮雕墙上那个 17 岁参军的 "山凤"。' +
+      '这些人和事，80 年过去了，还有人记得吗？' +
+      '你掏出手机，拍了一张英雄山的照片，准备在朋友圈写下感悟。',
+    prompt: '你想在朋友圈写下什么感悟？',
+    choices: [
+      { label: 'A', text: '"打卡妙峰山英雄山，风景不错。"', success: false,
+        result: '❌ 理解流于表面。错误解释：英雄山的核心是缅怀先烈、铭记牺牲，单纯打卡留念没有领会此行的意义。请重试。' },
+      { label: 'B', text: '"他们没等到黎明，但我们替他们看到了。"', success: true,
+        result: '✅ 回答正确！你读懂了所有革命者牺牲的意义，也接过了铭记与传承的责任，完成了英雄山的全部缅怀行程。\n🎉 恭喜完成英雄山全部缅怀行程，解锁专属徽章：英雄致敬人',
+        badge: '英雄致敬人', final: true },
+      { label: 'C', text: '"今天参观了烈士纪念碑，挺有教育意义。"', success: false,
+        result: '❌ 理解不够深刻。错误解释：教育意义是表层价值，更核心的是读懂先辈的信仰，珍惜当下的和平，传承他们的精神。请重试。' },
+    ],
+    camera: LANDSCAPE_CAMERA,
+    models: [],
+  },
+};
+
+let renderer, scene3d, camera, gltfLoader;
+let sceneObjects = [];
+let currentScene = 1;
+let sceneReady = false;
+let sceneBuilding = false;
+let sceneLoadId = 0;
+const modelCache = {};
+const modelLoading = {};
+let audioOn = true;
+let pendingNext = null;
+let pendingRetry = false;
+let autoTimer = null;
+let jinianbeiRef = null;
+let scene1Camera = null;
+let landscapeLook = { y: 12, z: -22 };
+let choiceHandled = false;
+let openingGen = 0;
+let speechGen = 0;
+
+function getScene() { return SCENES[currentScene]; }
+
+function add(obj) {
+  scene3d.add(obj);
+  sceneObjects.push(obj);
+}
+
+function disposeObject(obj) {
+  if (!obj) return;
+  if (obj.dispose) obj.dispose();
+  else if (obj.traverse) {
+    obj.traverse((c) => {
+      if (c.geometry) c.geometry.dispose();
+      if (c.material) {
+        if (Array.isArray(c.material)) c.material.forEach((m) => m.dispose());
+        else c.material.dispose();
+      }
+    });
+  }
+}
+
+function clearScene() {
+  [...scene3d.children].forEach((child) => {
+    scene3d.remove(child);
+    disposeObject(child);
+  });
+  sceneObjects.length = 0;
+  jinianbeiRef = null;
+}
+
+function buildSceneLandscapeCamera(sceneNum) {
+  const cam = {
+    pos: [0, 2.5, 16],
+    look: [0, landscapeLook.y, landscapeLook.z - 36],
+  };
+  SCENES[sceneNum].camera = cam;
+  if (sceneNum === 1) scene1Camera = cam;
+}
+
+function buildScene2Monument() {
+  if (!jinianbeiRef) return;
+  resetModelTransform(jinianbeiRef);
+  fitModelToTarget(jinianbeiRef, 5.5, GROUND_Y);
+  jinianbeiRef.position.set(0, jinianbeiRef.position.y, 0);
+
+  const box = new THREE.Box3().setFromObject(jinianbeiRef);
+  const ctr = box.getCenter(new THREE.Vector3());
+  const size = box.getSize(new THREE.Vector3());
+  const eyeY = GROUND_Y + 1.62;
+  const standZ = box.max.z + Math.max(size.z * 0.32, 1.6);
+  const horiz = Math.abs(standZ - ctr.z);
+  const pitch15 = 15 * Math.PI / 180;
+  SCENES[2].camera = {
+    pos: [ctr.x, eyeY, standZ],
+    look: [ctr.x, eyeY + horiz * Math.tan(pitch15), ctr.z],
+  };
+}
+
+function buildMountainStairs() {
+  const group = new THREE.Group();
+  group.name = 'MountainStairs';
+
+  const stepMat = new THREE.MeshStandardMaterial({ color: 0x8a8580, roughness: 0.88 });
+  const dirtMat = new THREE.MeshStandardMaterial({ color: 0x6a5a48, roughness: 0.96 });
+
+  const stepCount = 30;
+  const stepW = 3.2;
+  const stepD = 0.46;
+  const stepH = 0.34;
+  const sideRampW = 5.8;
+  const startY = GROUND_Y + 0.04;
+  const startZ = 11.5;
+
+  for (let i = 0; i < stepCount; i++) {
+    const stepZ = startZ - stepD * (i + 0.5);
+    const stepY = startY + stepH * (i + 0.5);
+    const step = new THREE.Mesh(new THREE.BoxGeometry(stepW, stepH, stepD), stepMat);
+    step.position.set(0, stepY, stepZ);
+    step.castShadow = true;
+    step.receiveShadow = true;
+    group.add(step);
+  }
+
+  const endY = startY + stepH * stepCount;
+  const endZ = startZ - stepD * stepCount;
+  const rampStartZ = startZ + 0.2;
+  const run = rampStartZ - endZ;
+  const rise = endY - startY;
+  const rampLen = Math.hypot(run, rise) + 0.4;
+  const rampAngle = Math.atan2(rise, run);
+
+  const join = new THREE.Mesh(
+    new THREE.BoxGeometry(stepW + sideRampW * 2 - 0.5, 0.06, 0.34),
+    stepMat,
+  );
+  join.position.set(0, startY + 0.03, startZ - 0.05);
+  join.receiveShadow = true;
+  group.add(join);
+
+  [-1, 1].forEach((side) => {
+    const ramp = new THREE.Mesh(new THREE.BoxGeometry(sideRampW, 0.12, rampLen), dirtMat);
+    ramp.position.set(
+      side * (stepW / 2 + sideRampW / 2 - 0.08),
+      startY + rise / 2 - 0.06,
+      (rampStartZ + endZ) / 2,
+    );
+    ramp.rotation.x = rampAngle;
+    ramp.castShadow = true;
+    ramp.receiveShadow = true;
+    group.add(ramp);
+  });
+
+  add(group);
+  landscapeLook = { y: endY * 0.55, z: endZ };
+}
+
+function buildScene2Trees() {
+  const trunkMat = new THREE.MeshStandardMaterial({ color: 0x2a3a28, roughness: 0.95 });
+  const crownMat = new THREE.MeshStandardMaterial({ color: 0x2a5a32, roughness: 0.85 });
+  [
+    [-14, 5, 9], [16, 4, 9.5], [-12, -4, 8.5], [13, -6, 9],
+    [-20, -14, 10], [22, -12, 10.5], [-8, -22, 9.5], [9, -24, 10],
+    [-24, -8, 9], [26, -6, 9.5], [-6, 10, 8], [7, 12, 8.5],
+  ].forEach(([x, z, h]) => {
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.42, h, 8), trunkMat);
+    trunk.position.set(x, h / 2, z);
+    trunk.castShadow = true;
+    add(trunk);
+    const crown = new THREE.Mesh(new THREE.ConeGeometry(3.2, 5.5, 8), crownMat);
+    crown.position.set(x, h + 2.6, z);
+    add(crown);
+  });
+}
+
+function buildBigTrees() {
+  const trunkMat = new THREE.MeshStandardMaterial({ color: 0x2a3a28, roughness: 0.95 });
+  const crownMat = new THREE.MeshStandardMaterial({ color: 0x2a5a32, roughness: 0.85 });
+  [
+    [-22, 10, 10], [24, 8, 11], [-18, -6, 9], [20, -8, 10],
+    [-14, 16, 8.5], [16, 14, 9], [-28, 2, 10.5], [26, 0, 9.5],
+    [-10, -12, 8], [12, -14, 8.5],
+  ].forEach(([x, z, h]) => {
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.42, h, 8), trunkMat);
+    trunk.position.set(x, h / 2, z);
+    trunk.castShadow = true;
+    add(trunk);
+    const crown = new THREE.Mesh(new THREE.ConeGeometry(3.2, 5.5, 8), crownMat);
+    crown.position.set(x, h + 2.6, z);
+    add(crown);
+  });
+}
+
+function buildDistantMountains() {
+  const matFar = new THREE.MeshStandardMaterial({ color: 0x3d4d3a, roughness: 0.98 });
+  const matMid = new THREE.MeshStandardMaterial({ color: 0x4a5a48, roughness: 0.96 });
+  const matNear = new THREE.MeshStandardMaterial({ color: 0x5a6a52, roughness: 0.94 });
+  const layers = [
+    [-42, -32, 18, matNear], [40, -34, 20, matNear], [-34, -48, 26, matMid],
+    [36, -46, 24, matMid], [-48, -22, 16, matNear], [46, -24, 17, matNear],
+    [-20, -38, 22, matMid], [22, -40, 21, matMid], [-8, -52, 28, matMid],
+    [10, -54, 27, matMid],
+    [-44, -62, 32, matFar], [42, -64, 30, matFar], [-16, -72, 36, matFar],
+    [18, -74, 35, matFar], [0, -82, 40, matFar],
+  ];
+  layers.forEach(([x, z, h, mat]) => {
+    const m = new THREE.Mesh(new THREE.ConeGeometry(11 + h * 0.28, h, 7), mat);
+    m.position.set(x, h * 0.4, z);
+    add(m);
+    const m2 = new THREE.Mesh(new THREE.ConeGeometry(7 + h * 0.18, h * 0.62, 6), matFar);
+    m2.position.set(x + 9, h * 0.26, z + 7);
+    add(m2);
+  });
+  const ridge = new THREE.Mesh(
+    new THREE.ConeGeometry(32, 44, 8),
+    new THREE.MeshStandardMaterial({ color: 0x4a5c46, roughness: 0.97 }),
+  );
+  ridge.position.set(0, 14, -78);
+  add(ridge);
+}
+
+function buildMountainEnv(sceneNum) {
+  const sky = 0x88b8e8;
+  scene3d.background = new THREE.Color(sky);
+  scene3d.fog = new THREE.Fog(sky, sceneNum === 2 ? 40 : 55, sceneNum === 2 ? 120 : 210);
+
+  const ground = new THREE.Mesh(
+    new THREE.PlaneGeometry(160, 160),
+    new THREE.MeshStandardMaterial({ color: sceneNum === 2 ? 0x5a6a50 : 0x4a5a44, roughness: 0.94 }),
+  );
+  ground.rotation.x = -Math.PI / 2;
+  ground.position.y = -0.02;
+  ground.receiveShadow = true;
+  add(ground);
+
+  if (sceneNum === 1 || sceneNum === 3) {
+    buildMountainStairs();
+    buildDistantMountains();
+    buildBigTrees();
+  } else if (sceneNum === 2) {
+    buildDistantMountains();
+    buildScene2Trees();
+  }
+}
+
+function resetModelTransform(obj) {
+  obj.scale.set(1, 1, 1);
+  obj.position.set(0, 0, 0);
+  obj.rotation.set(0, 0, 0);
+}
+
+function fitModelToTarget(obj, targetSize, yOffset = 0) {
+  const box = new THREE.Box3().setFromObject(obj);
+  const maxDim = Math.max(...box.getSize(new THREE.Vector3()).toArray());
+  if (maxDim < 0.01) return;
+  obj.scale.setScalar(targetSize / maxDim);
+  const box2 = new THREE.Box3().setFromObject(obj);
+  obj.position.y -= box2.min.y;
+  obj.position.y += yOffset;
+}
+
+function setSceneLoading(on, msg) {
+  const el = document.getElementById('sceneLoading');
+  if (msg) document.getElementById('loadTitle').textContent = msg;
+  if (!on) document.getElementById('loadProgress').textContent = '';
+  el.classList.toggle('show', on);
+}
+
+function updateUI() {
+  const s = getScene();
+  document.getElementById('topTag').textContent = '⛰️ ' + s.tag;
+  document.getElementById('miniYear').textContent = s.year;
+  document.getElementById('miniTitle').textContent = s.title;
+  document.querySelectorAll('.scene-nav button').forEach((btn) => {
+    btn.classList.toggle('active', parseInt(btn.dataset.scene, 10) === currentScene);
+  });
+}
+
+function tryLoadUrl(url) {
+  return new Promise((resolve) => {
+    gltfLoader.load(url, (gltf) => resolve({ ok: true, scene: gltf.scene }), undefined, () => resolve({ ok: false }));
+  });
+}
+
+async function fetchModel(key, sceneNum) {
+  const allowed = SCENES[sceneNum].models || [];
+  if (!allowed.includes(key)) return false;
+  if (modelCache[key]) return true;
+  if (modelLoading[key]) { await modelLoading[key]; return !!modelCache[key]; }
+  const candidates = MODEL_CANDIDATES[key] || [];
+  modelLoading[key] = (async () => {
+    for (const url of candidates) {
+      const result = await tryLoadUrl(url);
+      if (result.ok) { modelCache[key] = result.scene; console.log('✅ 已加载:', key, url); return; }
+    }
+    console.warn('⚠️ 未找到模型:', key);
+  })();
+  try { await modelLoading[key]; } finally { delete modelLoading[key]; }
+  return !!modelCache[key];
+}
+
+function instantiateModel(key) {
+  const template = modelCache[key];
+  if (!template) return null;
+  const wrap = new THREE.Group();
+  wrap.userData.propType = key;
+  wrap.add(template.clone(true));
+  return wrap;
+}
+
+function enforceSceneIsolation(sceneNum) {
+  const allowed = new Set(SCENES[sceneNum].models || []);
+  for (let i = sceneObjects.length - 1; i >= 0; i--) {
+    const t = sceneObjects[i].userData?.propType;
+    if (t && !allowed.has(t)) {
+      scene3d.remove(sceneObjects[i]);
+      disposeObject(sceneObjects[i]);
+      sceneObjects.splice(i, 1);
+    }
+  }
+}
+
+async function placeSceneModels(sceneNum, loadId) {
+  jinianbeiRef = null;
+  if (sceneNum === 1 || sceneNum === 3) {
+    buildSceneLandscapeCamera(sceneNum);
+    applyCamera(getScene().camera);
+    return 0;
+  }
+
+  const keys = SCENES[sceneNum].models || [];
+  await Promise.all(keys.map((k) => fetchModel(k, sceneNum)));
+  if (loadId !== sceneLoadId) return 0;
+  let placed = 0;
+  for (const key of keys) {
+    if (loadId !== sceneLoadId) return placed;
+    const wrap = instantiateModel(key);
+    if (!wrap) continue;
+    const model = wrap.children[0];
+    model.traverse((c) => { if (c.isMesh) { c.castShadow = true; c.receiveShadow = true; } });
+    add(wrap);
+    if (key === 'jinianbei') jinianbeiRef = model;
+    placed++;
+  }
+  if (loadId !== sceneLoadId) return placed;
+  buildScene2Monument();
+  enforceSceneIsolation(sceneNum);
+  applyCamera(getScene().camera);
+  return placed;
+}
+
+function setupLights() {
+  add(new THREE.AmbientLight(0xe8f0e8, 0.5));
+  add(new THREE.HemisphereLight(0xd8e8f0, 0x3a4a38, 0.4));
+  const sun = new THREE.DirectionalLight(0xfff8e8, 0.85);
+  sun.position.set(6, 12, 8);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(512, 512);
+  add(sun);
+}
+
+function applyCamera(cfg) {
+  if (!cfg) return;
+  camera.position.set(...cfg.pos);
+  camera.lookAt(...cfg.look);
+}
+
+function resetSceneFlowState() {
+  openingGen++;
+  speechGen++;
+  choiceHandled = false;
+  pendingNext = null;
+  pendingRetry = false;
+  pendingHiddenChapter = false;
+  pendingFinalePage = false;
+  clearTimeout(autoTimer);
+  hideChoiceModal();
+  document.getElementById('resultPopup').classList.remove('show');
+}
+
+function stopSpeech() {
+  if (window.speechSynthesis) window.speechSynthesis.cancel();
+  stopNarrationAudio();
+  document.getElementById('narrationBar').classList.remove('show');
+}
+
+async function buildScene(num, onDone) {
+  const loadId = ++sceneLoadId;
+  stopSpeech();
+  resetSceneFlowState();
+  sceneBuilding = true;
+  sceneReady = false;
+  setSceneLoading(true, '加载场景 ' + num + '…');
+  clearScene();
+  buildMountainEnv(num);
+  setupLights();
+  const placed = await placeSceneModels(num, loadId);
+  if (loadId !== sceneLoadId) return;
+  sceneBuilding = false;
+  sceneReady = true;
+  setSceneLoading(false);
+  updateUI();
+  const prog = document.getElementById('loadProgress');
+  if (placed > 0) {
+    prog.textContent = '已加载纪念碑模型';
+  } else if (num === 2) {
+    prog.textContent = '未找到 jinianbei.glb';
+  } else {
+    prog.textContent = '';
+  }
+  if (prog.textContent) setTimeout(() => { prog.textContent = ''; }, 2800);
+  if (onDone) {
+    const gen = openingGen;
+    setTimeout(() => {
+      if (gen !== openingGen || currentScene !== num || sceneBuilding) return;
+      onDone();
+    }, 400);
+  }
+}
+
+function switchScene(n) {
+  if (sceneBuilding || n === currentScene) return;
+  if (introActive) finishIntro();
+  if (hiddenActive) {
+    hiddenChapterSkipRequested = true;
+    hiddenActive = false;
+    stopHidden();
+    document.getElementById('hiddenOverlay').classList.remove('show');
+    document.body.classList.remove('hidden-active');
+  }
+  if (finaleActive) finishFinalePage();
+  stopSpeech();
+  currentScene = n;
+  buildScene(n, playOpening);
+}
+
+function hasFinaleSeen() {
+  try { return localStorage.getItem(FINALE_SEEN_KEY) === '1'; } catch { return false; }
+}
+
+function markFinaleSeen() {
+  try { localStorage.setItem(FINALE_SEEN_KEY, '1'); } catch { /* ignore */ }
+}
+
+function stopFinaleReveal() {
+  if (finaleRevealTimer) {
+    clearTimeout(finaleRevealTimer);
+    finaleRevealTimer = null;
+  }
+}
+
+function resetFinaleRevealState() {
+  stopFinaleReveal();
+  document.querySelectorAll('#finaleOverlay .show').forEach((el) => el.classList.remove('show'));
+}
+
+function finishFinalePage() {
+  if (!finaleActive) return;
+  finaleActive = false;
+  resetFinaleRevealState();
+  document.getElementById('finaleOverlay').classList.remove('show', 'finale-historic', 'finale-letter', 'finale-epilogue');
+  document.getElementById('finalePage1').classList.remove('hidden');
+  document.getElementById('finalePage2').classList.remove('active');
+  document.getElementById('finalePage3').classList.remove('active');
+  document.getElementById('finalePage4').classList.remove('active');
+  document.getElementById('finalePage5').classList.remove('active');
+  document.getElementById('finalePage6').classList.remove('active');
+  resetFinalePage5();
+  document.getElementById('finalePage2Btn').classList.remove('show');
+  document.getElementById('finalePage3Btn').classList.remove('show');
+  document.getElementById('finalePage4Btn').classList.remove('show');
+  document.getElementById('finalePage5Btn').classList.remove('show');
+  document.getElementById('finaleFinishBtn').classList.remove('show');
+  document.getElementById('finalePage2Title').classList.remove('show');
+  document.getElementById('finalePage3Title').classList.remove('show');
+  document.getElementById('finalePage4Title').classList.remove('show');
+  document.getElementById('finalePage5Title').classList.remove('show');
+  document.getElementById('finalePage6Title').classList.remove('show');
+  document.getElementById('finalePage6Tag').classList.remove('show');
+  document.querySelectorAll('#finalePage6Quote .finale-page6-line').forEach((el) => el.classList.remove('show'));
+  document.getElementById('finaleClosing1').classList.remove('show');
+  document.getElementById('finaleClosing2').classList.remove('show');
+  const achievement = document.getElementById('finaleAchievement');
+  if (achievement) achievement.classList.remove('show');
+  document.body.classList.remove('finale-active');
+  const finaleSkip = document.getElementById('finaleSkipBtn');
+  if (finaleSkip) finaleSkip.classList.remove('show');
+  setTimeout(returnToCheckin, 1200);
+}
+
+function resetFinalePage5() {
+  document.getElementById('finalePage5Input').classList.remove('hidden');
+  document.getElementById('finalePage5Letter').classList.add('hidden');
+  document.getElementById('finaleNameForm').classList.remove('show');
+  document.getElementById('finaleNameSubmitBtn').classList.remove('show');
+  document.getElementById('finaleNameInput').value = '';
+  document.getElementById('finaleNameDisplay').textContent = '';
+  document.getElementById('finaleLetterClose').classList.remove('show');
+  document.getElementById('finaleLetterSign').classList.remove('show');
+  document.getElementById('finaleLetterSalute').classList.remove('show');
+  document.getElementById('finalePage5Btn').classList.remove('show');
+  document.querySelectorAll('#finaleLetterLines .finale-letter-line').forEach((el) => el.classList.remove('show'));
+}
+
+function staggerReveal(elements, interval = 650, onDone) {
+  let step = 0;
+  const revealNext = () => {
+    if (!finaleActive || step >= elements.length) {
+      if (onDone) onDone();
+      return;
+    }
+    elements[step].classList.add('show');
+    step++;
+    if (step < elements.length) {
+      finaleRevealTimer = setTimeout(revealNext, interval);
+    } else if (onDone) {
+      finaleRevealTimer = setTimeout(onDone, interval);
+    }
+  };
+  finaleRevealTimer = setTimeout(revealNext, 500);
+}
+
+function playFinalePage1() {
+  if (!hasBadge('英雄致敬人') || finaleActive) return;
+  finaleActive = true;
+  pendingFinalePage = false;
+  document.getElementById('finaleOverlay').classList.add('show');
+  document.getElementById('finaleOverlay').classList.remove('finale-historic', 'finale-letter', 'finale-epilogue');
+  document.getElementById('finalePage1').classList.remove('hidden');
+  document.getElementById('finalePage2').classList.remove('active');
+  document.getElementById('finalePage3').classList.remove('active');
+  document.getElementById('finalePage4').classList.remove('active');
+  document.getElementById('finalePage5').classList.remove('active');
+  document.getElementById('finalePage6').classList.remove('active');
+  document.body.classList.add('finale-active');
+  const finaleSkip = document.getElementById('finaleSkipBtn');
+  if (finaleSkip) finaleSkip.classList.add('show');
+  resetFinaleRevealState();
+
+  const achievement = document.getElementById('finaleAchievement');
+  const title = document.getElementById('finaleTitle');
+  const sub = document.getElementById('finaleSub');
+  const lines = [...document.querySelectorAll('#finaleLines .finale-line')];
+  const btn = document.getElementById('finaleRevealBtn');
+  staggerReveal([achievement, title, sub, ...lines, btn], 750);
+}
+
+function playFinalePage2() {
+  document.getElementById('finalePage1').classList.add('hidden');
+  document.getElementById('finalePage2').classList.add('active');
+  resetFinaleRevealState();
+  const pageTitle = document.getElementById('finalePage2Title');
+  const blocks = [...document.querySelectorAll('#finaleScroll .finale-doc-block')];
+  const finishBtn = document.getElementById('finalePage2Btn');
+  staggerReveal([pageTitle, ...blocks], 600, () => {
+    if (finaleActive) finishBtn.classList.add('show');
+  });
+}
+
+function playFinalePage3() {
+  document.getElementById('finalePage2').classList.remove('active');
+  document.getElementById('finalePage3').classList.add('active');
+  resetFinaleRevealState();
+  const pageTitle = document.getElementById('finalePage3Title');
+  const quote = document.getElementById('finaleMarshalQuote');
+  const attrib = document.getElementById('finaleMarshalAttrib');
+  const lines = [...document.querySelectorAll('#finalePage3Lines .finale-page3-line')];
+  const nextBtn = document.getElementById('finalePage3Btn');
+  staggerReveal([pageTitle, quote, attrib, ...lines], 800, () => {
+    if (finaleActive) nextBtn.classList.add('show');
+  });
+}
+
+function playFinalePage4() {
+  document.getElementById('finalePage3').classList.remove('active');
+  document.getElementById('finalePage4').classList.add('active');
+  document.getElementById('finaleOverlay').classList.add('finale-historic');
+  resetFinaleRevealState();
+  const pageTitle = document.getElementById('finalePage4Title');
+  const lines = [...document.querySelectorAll('#finalePage4Lines .finale-page4-line')];
+  const finishBtn = document.getElementById('finalePage4Btn');
+  staggerReveal([pageTitle, ...lines], 900, () => {
+    if (finaleActive) finishBtn.classList.add('show');
+  });
+}
+
+function playFinalePage5() {
+  document.getElementById('finalePage4').classList.remove('active');
+  document.getElementById('finalePage5').classList.add('active');
+  document.getElementById('finaleOverlay').classList.remove('finale-historic');
+  document.getElementById('finaleOverlay').classList.add('finale-letter');
+  resetFinalePage5();
+  resetFinaleRevealState();
+  const title = document.getElementById('finalePage5Title');
+  const prompts = [...document.querySelectorAll('#finalePage5Prompt .finale-page5-line')];
+  const form = document.getElementById('finaleNameForm');
+  const submitBtn = document.getElementById('finaleNameSubmitBtn');
+  staggerReveal([title, ...prompts, form], 750, () => {
+    submitBtn.classList.add('show');
+    document.getElementById('finaleNameInput').focus();
+  });
+}
+
+window.submitFinaleName = function () {
+  if (!finaleActive) return;
+  const input = document.getElementById('finaleNameInput');
+  const name = input.value.trim();
+  if (!name) { input.focus(); return; }
+  document.getElementById('finaleNameDisplay').textContent = name;
+  document.getElementById('finalePage5Input').classList.add('hidden');
+  document.getElementById('finalePage5Letter').classList.remove('hidden');
+  resetFinaleRevealState();
+  const salute = document.getElementById('finaleLetterSalute');
+  const lines = [...document.querySelectorAll('#finaleLetterLines .finale-letter-line')];
+  const closeLine = document.getElementById('finaleLetterClose');
+  const sign = document.getElementById('finaleLetterSign');
+  const nextBtn = document.getElementById('finalePage5Btn');
+  staggerReveal([salute, ...lines, closeLine, sign], 700, () => {
+    if (finaleActive) nextBtn.classList.add('show');
+  });
+};
+
+function playFinalePage6() {
+  document.getElementById('finalePage5').classList.remove('active');
+  document.getElementById('finalePage6').classList.add('active');
+  document.getElementById('finaleOverlay').classList.remove('finale-letter');
+  document.getElementById('finaleOverlay').classList.add('finale-epilogue');
+  resetFinaleRevealState();
+  const title = document.getElementById('finalePage6Title');
+  const tag = document.getElementById('finalePage6Tag');
+  const quoteLines = [...document.querySelectorAll('#finalePage6Quote .finale-page6-line')];
+  const closing1 = document.getElementById('finaleClosing1');
+  const closing2 = document.getElementById('finaleClosing2');
+  const finishBtn = document.getElementById('finaleFinishBtn');
+  staggerReveal([title, tag, ...quoteLines], 850, () => {
+    if (!finaleActive) return;
+    closing1.classList.add('show');
+    finaleRevealTimer = setTimeout(() => {
+      if (!finaleActive) return;
+      closing2.classList.add('show');
+      finaleRevealTimer = setTimeout(() => {
+        if (finaleActive) finishBtn.classList.add('show');
+      }, 1800);
+    }, 1600);
+  });
+}
+
+window.goFinalePage6 = function () {
+  if (!finaleActive) return;
+  resetFinaleRevealState();
+  playFinalePage6();
+};
+
+window.goFinalePage5 = function () {
+  if (!finaleActive) return;
+  resetFinaleRevealState();
+  playFinalePage5();
+};
+
+window.goFinalePage4 = function () {
+  if (!finaleActive) return;
+  resetFinaleRevealState();
+  playFinalePage4();
+};
+
+window.goFinalePage3 = function () {
+  if (!finaleActive) return;
+  resetFinaleRevealState();
+  playFinalePage3();
+};
+
+window.revealFinalHistory = function () {
+  if (!finaleActive) return;
+  resetFinaleRevealState();
+  playFinalePage2();
+};
+
+window.finishFinaleJourney = function () {
+  if (!finaleActive) return;
+  markFinaleSeen();
+  finishFinalePage();
+};
+
+function hasHiddenSeen() {
+  try { return localStorage.getItem(HIDDEN_SEEN_KEY) === '1'; } catch { return false; }
+}
+
+function markHiddenSeen() {
+  try { localStorage.setItem(HIDDEN_SEEN_KEY, '1'); } catch { /* ignore */ }
+}
+
+function stopHidden() {
+  if (hiddenTypeTimer) {
+    clearTimeout(hiddenTypeTimer);
+    hiddenTypeTimer = null;
+  }
+  if (window.speechSynthesis) window.speechSynthesis.cancel();
+  stopNarrationAudio();
+}
+
+function speakLongText(text, onEnd) {
+  if (!audioOn || !text) { if (onEnd) onEnd(); return; }
+  if (window.speechSynthesis) window.speechSynthesis.cancel();
+  const parts = text.match(/[^。！？\n]+[。！？]?/g) || [text];
+  let i = 0;
+  const speakNext = () => {
+    if (hiddenChapterSkipRequested || !hiddenActive || i >= parts.length) {
+      if (onEnd) onEnd();
+      return;
+    }
+    const part = parts[i++].trim();
+    if (!part) { speakNext(); return; }
+    const u = new SpeechSynthesisUtterance(part);
+    u.lang = 'zh-CN';
+    u.rate = 0.88;
+    u.onend = speakNext;
+    u.onerror = speakNext;
+    window.speechSynthesis.speak(u);
+  };
+  speakNext();
+}
+
+function typewriterHidden(el, text, charMs, onDone) {
+  el.textContent = '';
+  let i = 0;
+  const cursor = document.createElement('span');
+  cursor.className = 'intro-cursor';
+  el.appendChild(cursor);
+  const tick = () => {
+    if (hiddenChapterSkipRequested || !hiddenActive) {
+      cursor.remove();
+      return;
+    }
+    if (i >= text.length) {
+      cursor.remove();
+      if (onDone) onDone();
+      return;
+    }
+    el.insertBefore(document.createTextNode(text[i]), cursor);
+    i++;
+    hiddenTypeTimer = setTimeout(tick, charMs);
+  };
+  hiddenTypeTimer = setTimeout(tick, charMs);
+}
+
+function enterFinaleAfterHidden() {
+  setTimeout(() => {
+    if (hasBadge('英雄致敬人') && !finaleActive) playFinalePage1();
+  }, 400);
+}
+
+function finishHidden() {
+  if (!hiddenActive || hiddenChapterSkipRequested) return;
+  hiddenActive = false;
+  stopHidden();
+  markHiddenSeen();
+  document.getElementById('hiddenOverlay').classList.remove('show');
+  document.body.classList.remove('hidden-active');
+  document.getElementById('hiddenText').textContent = HIDDEN_TEXT;
+  enterFinaleAfterHidden();
+}
+
+function playHiddenChapter() {
+  if (!hasBadge('英雄致敬人')) {
+    returnToCheckin();
+    return;
+  }
+  hiddenChapterSkipRequested = false;
+  hiddenActive = true;
+  stopSpeech();
+  hideChoiceModal();
+  document.getElementById('resultPopup').classList.remove('show');
+  const badgeEl = document.getElementById('badgeRevealOverlay');
+  if (badgeEl) {
+    badgeEl.classList.remove('show', 'animate');
+    badgeEl.classList.add('hide');
+  }
+
+  const overlay = document.getElementById('hiddenOverlay');
+  const textEl = document.getElementById('hiddenText');
+  const hint = document.getElementById('hiddenHint');
+  textEl.textContent = '';
+  if (hint) hint.textContent = '深度阅读中…';
+  overlay.classList.add('show');
+  document.body.classList.add('hidden-active');
+
+  let twDone = false;
+  let speechDone = false;
+  const maybeFinish = () => {
+    if (hiddenChapterSkipRequested || !hiddenActive) return;
+    if (twDone && speechDone) {
+      if (hint) hint.textContent = '篇章结束，即将进入终章…';
+      setTimeout(finishHidden, 1000);
+    }
+  };
+
+  typewriterHidden(textEl, HIDDEN_TEXT, 22, () => { twDone = true; maybeFinish(); });
+  speakLongText(HIDDEN_TEXT, () => { speechDone = true; maybeFinish(); });
+}
+
+window.skipHiddenReading = function () {
+  if (!hiddenActive) return;
+  // 立刻停声，随后进入终章页面
+  hiddenChapterSkipRequested = true;
+  hiddenActive = false;
+  stopHidden();
+  markHiddenSeen();
+  document.getElementById('hiddenOverlay').classList.remove('show');
+  document.body.classList.remove('hidden-active');
+  document.getElementById('hiddenText').textContent = '';
+  enterFinaleAfterHidden();
+};
+
+window.skipFinaleReading = function () {
+  // 终章：立刻停声，马上返回打卡界面
+  if (!finaleActive) return;
+  if (window.speechSynthesis) window.speechSynthesis.cancel();
+  if (typeof stopSpeech === 'function') stopSpeech();
+  if (typeof stopFinaleReveal === 'function') stopFinaleReveal();
+  markFinaleSeen();
+  finaleActive = false;
+  const finaleSkip = document.getElementById('finaleSkipBtn');
+  if (finaleSkip) finaleSkip.classList.remove('show');
+  document.getElementById('finaleOverlay').classList.remove('show', 'finale-historic', 'finale-letter', 'finale-epilogue');
+  document.body.classList.remove('finale-active');
+  returnToCheckin();
+};
+
+function stopIntro() {
+  if (introTypeTimer) {
+    clearInterval(introTypeTimer);
+    introTypeTimer = null;
+  }
+  if (window.speechSynthesis) window.speechSynthesis.cancel();
+  stopNarrationAudio();
+}
+
+function finishIntro() {
+  if (introFinished) return;
+  introFinished = true;
+  introActive = false;
+  stopIntro();
+  document.getElementById('introOverlay').classList.remove('show');
+  document.getElementById('introSkipBtn').classList.remove('show');
+  document.body.classList.remove('intro-active');
+  document.getElementById('introText').textContent = INTRO_TEXT;
+  if (introResolve) {
+    const r = introResolve;
+    introResolve = null;
+    r();
+  }
+}
+
+function playIntro() {
+  return new Promise((resolve) => {
+    introFinished = false;
+    introActive = true;
+    introResolve = resolve;
+    const overlay = document.getElementById('introOverlay');
+    const textEl = document.getElementById('introText');
+    const skipBtn = document.getElementById('introSkipBtn');
+    textEl.textContent = '';
+    overlay.classList.add('show');
+    skipBtn.classList.add('show');
+    document.body.classList.add('intro-active');
+
+    let i = 0;
+    introTypeTimer = setInterval(() => {
+      if (!introActive || i >= INTRO_TEXT.length) {
+        clearInterval(introTypeTimer);
+        introTypeTimer = null;
+        return;
+      }
+      textEl.textContent += INTRO_TEXT[i++];
+    }, 55);
+
+    if (!audioOn) {
+      setTimeout(finishIntro, Math.max(3000, INTRO_TEXT.length * 55 + 800));
+      return;
+    }
+
+    playDocAudio('intro', INTRO_TEXT, () => {
+      if (introActive) setTimeout(finishIntro, 600);
+    });
+  });
+}
+
+window.skipIntroReading = function () {
+  if (!introActive) return;
+  stopIntro();
+  finishIntro();
+};
+
+function hasBadge(name) {
+  try { return JSON.parse(localStorage.getItem(BADGE_KEY) || '[]').includes(name); } catch { return false; }
+}
+
+function awardBadge(name) {
+  try {
+    const list = JSON.parse(localStorage.getItem(BADGE_KEY) || '[]');
+    if (!list.includes(name)) { list.push(name); localStorage.setItem(BADGE_KEY, JSON.stringify(list)); }
+  } catch { /* ignore */ }
+}
+
+function speakText(text, onEnd, useBar = true) {
+  const gen = ++speechGen;
+  if (!audioOn || !text) { if (onEnd) onEnd(); return; }
+  if (window.speechSynthesis) window.speechSynthesis.cancel();
+  if (useBar) {
+    const bar = document.getElementById('narrationBar');
+    bar.textContent = text;
+    bar.classList.add('show');
+  }
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = 'zh-CN';
+  u.rate = 0.95;
+  const done = () => {
+    if (gen !== speechGen) return;
+    if (useBar) document.getElementById('narrationBar').classList.remove('show');
+    if (onEnd) onEnd();
+  };
+  u.onend = done;
+  u.onerror = done;
+  window.speechSynthesis.speak(u);
+}
+
+function speakNarration(text, onEnd) {
+  const bar = document.getElementById('narrationBar');
+  bar.textContent = text;
+  bar.classList.add('show');
+  playDocAudio('scene' + currentScene, text, () => {
+    bar.classList.remove('show');
+    if (onEnd) onEnd();
+  });
+}
+
+function speakCharacter(name, text, onEnd) {
+  document.getElementById('miniDialogue').textContent = '你：「' + text + '」';
+  speakText('你说：' + text, onEnd, false);
+}
+
+function hideChoiceModal() {
+  document.getElementById('choiceModal').classList.remove('show');
+  document.getElementById('choiceBtns').innerHTML = '';
+}
+
+function showChoices() {
+  if (choiceHandled) return;
+  document.getElementById('resultPopup').classList.remove('show');
+  const s = getScene();
+  document.getElementById('choiceTitle').textContent = s.title;
+  document.getElementById('choicePrompt').textContent = s.prompt;
+  const box = document.getElementById('choiceBtns');
+  box.innerHTML = '';
+  s.choices.forEach((c) => {
+    const btn = document.createElement('button');
+    btn.className = 'choice-modal-btn';
+    btn.type = 'button';
+    btn.innerHTML = '<span class="opt">' + c.label + '.</span>' + c.text;
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (choiceHandled) return;
+      handleChoice(c);
+    }, { once: true });
+    box.appendChild(btn);
+  });
+  document.getElementById('choiceModal').classList.add('show');
+}
+
+function playOpening() {
+  const gen = openingGen;
+  const sceneAtStart = currentScene;
+  hideChoiceModal();
+  document.getElementById('resultPopup').classList.remove('show');
+  choiceHandled = false;
+  document.getElementById('miniDialogue').textContent = '…';
+  stopSpeech();
+  speakNarration(getScene().narration, () => {
+    if (gen !== openingGen || currentScene !== sceneAtStart || choiceHandled) return;
+    showChoices();
+  });
+}
+
+function scheduleAutoAdvance(delayMs = 2200) {
+  clearTimeout(autoTimer);
+  const sceneAtSchedule = currentScene;
+  autoTimer = setTimeout(() => {
+    if (currentScene !== sceneAtSchedule) return;
+    if (!document.getElementById('resultPopup').classList.contains('show')) return;
+    closeResult();
+  }, delayMs);
+}
+
+function handleChoice(c) {
+  if (choiceHandled) return;
+  choiceHandled = true;
+  hideChoiceModal();
+  stopSpeech();
+  clearTimeout(autoTimer);
+  pendingRetry = !c.success;
+
+  const isFinalBadge = c.success && currentScene === 3 && c.badge === '英雄致敬人';
+  const p = document.getElementById('resultPopup');
+  p.className = 'result-popup ' + (c.success ? 'success ' : '') + 'show' + (isFinalBadge ? ' badge-together' : '');
+  document.getElementById('resultIcon').textContent = isFinalBadge ? '🏅' : (c.success ? '✅' : '❌');
+  document.getElementById('resultTitle').textContent = isFinalBadge ? '获得徽章' : (c.success ? '回答正确' : '回答错误');
+  document.getElementById('resultDesc').textContent = c.result;
+  if (isFinalBadge) awardBadge(c.badge);
+
+  if (c.success && currentScene < 3) {
+    pendingNext = currentScene + 1;
+    document.querySelector('.result-close').textContent = '继续 → 场景' + pendingNext;
+    if (c.speech) {
+      setTimeout(() => speakCharacter('你', c.speech.replace(/^"|"$/g, ''), () => scheduleAutoAdvance(1500)), 300);
+    } else {
+      scheduleAutoAdvance(2200);
+    }
+  } else if (isFinalBadge) {
+    pendingNext = null;
+    pendingHiddenChapter = true;
+    pendingFinalePage = false;
+    document.querySelector('.result-close').textContent = '继续 → 隐藏篇章';
+    if (typeof playBadgeReveal === 'function') playBadgeReveal('英雄致敬人');
+    autoTimer = setTimeout(() => {
+      document.getElementById('resultPopup').classList.remove('show');
+      pendingHiddenChapter = false;
+      playHiddenChapter();
+    }, 3200);
+  } else if (c.success && currentScene === 3) {
+    pendingNext = null;
+    pendingHiddenChapter = true;
+    pendingFinalePage = false;
+    document.querySelector('.result-close').textContent = '继续 → 隐藏篇章';
+    scheduleAutoAdvance(2200);
+  } else {
+    pendingNext = null;
+    document.querySelector('.result-close').textContent = '重试';
+  }
+}
+
+function closeResult() {
+  clearTimeout(autoTimer);
+  document.getElementById('resultPopup').classList.remove('show');
+  if (pendingRetry) {
+    pendingRetry = false;
+    choiceHandled = false;
+    showChoices();
+    return;
+  }
+  if (pendingHiddenChapter && hasBadge('英雄致敬人') && !hiddenActive) {
+    pendingHiddenChapter = false;
+    playHiddenChapter();
+    return;
+  }
+  if (pendingFinalePage && hasBadge('英雄致敬人') && !finaleActive) {
+    pendingFinalePage = false;
+    playFinalePage1();
+    return;
+  }
+  if (pendingNext) {
+    const next = pendingNext;
+    pendingNext = null;
+    currentScene = next;
+    buildScene(next, playOpening);
+  }
+}
+
+window.toggleAudio = function () {
+  audioOn = !audioOn;
+  document.getElementById('audioBtn').textContent = audioOn ? '🔊' : '🔇';
+  if (!audioOn) {
+    stopSpeech();
+    if (introActive && window.speechSynthesis) window.speechSynthesis.cancel();
+    if (hiddenActive) stopHidden();
+  }
+};
+window.closeResult = closeResult;
+window.switchScene = switchScene;
+
+function initThree() {
+  const container = document.getElementById('canvas-container');
+  renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.shadowMap.enabled = true;
+  container.appendChild(renderer.domElement);
+  scene3d = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 500);
+  gltfLoader = new GLTFLoader();
+  window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+}
+
+function animate() {
+  requestAnimationFrame(animate);
+  if (sceneReady && getScene().camera) {
+    const cam = getScene().camera;
+    camera.position.set(cam.pos[0], cam.pos[1], cam.pos[2]);
+    camera.lookAt(cam.look[0], cam.look[1], cam.look[2]);
+  }
+  renderer.render(scene3d, camera);
+}
+
+function showProtocolWarning(show) {
+  document.getElementById('protocolWarn').classList.toggle('show', show);
+}
+
+async function boot() {
+  if (location.protocol === 'file:') { showProtocolWarning(true); return; }
+  showProtocolWarning(false);
+  const params = new URLSearchParams(location.search);
+  const sceneParam = parseInt(params.get('scene'), 10);
+  if (sceneParam >= 1 && sceneParam <= 3) currentScene = sceneParam;
+  initThree();
+  animate();
+  updateUI();
+
+  const showIntroFirst = currentScene === 1 && params.get('skipIntro') !== '1';
+  if (showIntroFirst) await playIntro();
+
+  await buildScene(currentScene, playOpening);
+}
+
+boot();
+</script>
+</body>
+</html>

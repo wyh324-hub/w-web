@@ -1,0 +1,1447 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>初心广场 · 对话历史</title>
+  <link rel="preload" href="models/chuxinguangchang/fudiaoqiang.glb" as="fetch" crossorigin>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { overflow: hidden; background: #2a1a18; font-family: "PingFang SC", "Microsoft YaHei", sans-serif; color: #fff; }
+    #canvas-container { position: fixed; inset: 0; z-index: 0; }
+    .top-tag { position: fixed; top: 14px; left: 14px; z-index: 10; background: rgba(90,40,35,0.9); padding: 5px 12px; border-radius: 14px; font-size: 11px; }
+    .back-link { position: fixed; top: 14px; right: 14px; z-index: 10; color: #ddd; font-size: 11px; text-decoration: none; background: rgba(255,255,255,0.1); padding: 6px 12px; border-radius: 14px; }
+    .audio-btn { position: fixed; top: 50px; right: 14px; z-index: 10; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.3); color: #fff; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; font-size: 16px; }
+    .mini-panel { position: fixed; bottom: 16px; right: 16px; z-index: 20; width: 280px; background: rgba(18,10,10,0.88); border: 1px solid rgba(255,200,120,0.2); border-radius: 12px; padding: 12px 14px; }
+    .mini-year { font-size: 10px; color: #c89060; margin-bottom: 4px; }
+    .mini-title { font-size: 13px; font-weight: bold; color: #FFD700; margin-bottom: 6px; }
+    .mini-dialogue { font-size: 11px; line-height: 1.5; color: #e8d8c8; border-left: 2px solid #a05040; padding-left: 8px; font-style: italic; }
+    .narration-bar { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); z-index: 18; max-width: 540px; width: 90%; background: rgba(14,8,8,0.88); border: 1px solid rgba(200,120,80,0.45); border-radius: 10px; padding: 10px 16px; font-size: 12px; line-height: 1.55; color: #e8d8c8; font-style: italic; display: none; }
+    .narration-bar.show { display: block; }
+    .choice-overlay { position: fixed; inset: 0; z-index: 40; background: rgba(0,0,0,0.58); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; }
+    .choice-overlay.show { display: flex; }
+    .choice-modal { width: min(460px, 92vw); background: linear-gradient(160deg, rgba(28,14,12,0.98), rgba(12,8,8,0.99)); border: 2px solid #8a4038; border-radius: 16px; padding: 22px 24px; }
+    .choice-modal h3 { font-size: 15px; color: #FFD700; margin-bottom: 6px; }
+    .choice-modal .prompt { font-size: 12px; color: #bbb; margin-bottom: 14px; line-height: 1.5; }
+    .choice-modal-btn { display: block; width: 100%; background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.2); color: #eee; padding: 11px 14px; border-radius: 10px; cursor: pointer; text-align: left; font-size: 13px; margin-bottom: 8px; line-height: 1.45; }
+    .choice-modal-btn:hover { background: rgba(140,60,50,0.55); }
+    .choice-modal-btn .opt { color: #FFD700; font-weight: bold; margin-right: 6px; }
+    .result-popup { position: fixed; bottom: 16px; left: 16px; z-index: 30; width: 280px; display: none; background: rgba(18,10,10,0.96); border: 2px solid #8a4038; border-radius: 12px; padding: 14px; text-align: center; }
+    .result-popup.show { display: block; }
+    .result-popup.success { border-color: #FFD700; }
+    .result-popup.badge-together { z-index: 210; }
+    .result-icon { font-size: 26px; margin-bottom: 4px; }
+    .result-title { font-size: 13px; font-weight: bold; margin-bottom: 4px; }
+    .result-desc { font-size: 11px; color: #aaa; line-height: 1.5; margin-bottom: 8px; white-space: pre-line; }
+    .result-close { background: #8a4038; color: #fff; border: none; padding: 5px 18px; border-radius: 12px; font-size: 11px; cursor: pointer; }
+    .scene-nav { position: fixed; top: 14px; left: 50%; transform: translateX(-50%); z-index: 12; display: flex; gap: 6px; background: rgba(14,8,8,0.8); padding: 5px 8px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.15); }
+    .scene-nav button { background: transparent; border: none; color: #bbb; font-size: 11px; padding: 5px 12px; border-radius: 14px; cursor: pointer; white-space: nowrap; }
+    .scene-nav button.active { background: #8a4038; color: #fff; font-weight: bold; }
+    .scene-nav button:hover:not(.active) { color: #fff; background: rgba(255,255,255,0.1); }
+    #sceneLoading { position: fixed; inset: 0; z-index: 50; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,0.55); font-size: 13px; color: #e8b080; }
+    #sceneLoading.show { display: flex; flex-direction: column; gap: 8px; }
+    #loadProgress { font-size: 11px; color: #e8d0b8; }
+    #protocolWarn {
+      position: fixed; inset: 0; z-index: 200; display: none;
+      align-items: center; justify-content: center; background: rgba(0,0,0,0.82);
+      padding: 24px;
+    }
+    #protocolWarn.show { display: flex; }
+    #protocolWarn .warn-box {
+      max-width: 460px; background: #3a1818; border: 2px solid #c44;
+      border-radius: 14px; padding: 22px 24px; text-align: center; line-height: 1.7;
+    }
+    #protocolWarn h3 { color: #ffb4b4; margin-bottom: 10px; font-size: 16px; }
+    #protocolWarn p { color: #f0d8d8; font-size: 13px; }
+    #bubble-layer { position: fixed; inset: 0; z-index: 25; pointer-events: none; overflow: hidden; }
+    .speech-bubble {
+      position: absolute; transform: translate(-50%, -100%);
+      max-width: 220px; padding: 8px 12px;
+      background: rgba(255,252,245,0.96); color: #1a1a1a;
+      border: 2px solid #5a3028; border-radius: 14px;
+      font-size: 12px; line-height: 1.45; font-weight: 500;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.28);
+      opacity: 0; transition: opacity 0.25s;
+    }
+    .speech-bubble.show { opacity: 1; }
+    .speech-bubble::after {
+      content: ''; position: absolute; bottom: -10px; left: 50%; transform: translateX(-50%);
+      border: 10px solid transparent; border-top-color: #5a3028;
+    }
+    .speech-bubble .speaker-name { font-size: 10px; color: #8a4038; font-weight: bold; margin-bottom: 3px; }
+    .speech-bubble .bubble-text { color: #1a1a1a; font-size: 13px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
+    #introOverlay {
+      position: fixed; inset: 0; z-index: 60; display: none;
+      align-items: center; justify-content: center;
+      background: linear-gradient(165deg, rgba(28,10,8,0.97), rgba(12,6,6,0.99));
+      padding: 28px 20px;
+    }
+    #introOverlay.show { display: flex; }
+    .intro-panel {
+      width: min(720px, 94vw); max-height: 82vh; overflow-y: auto;
+      background: rgba(18,8,8,0.92); border: 2px solid #8a4038;
+      border-radius: 18px; padding: 28px 32px;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.45);
+    }
+    .intro-panel h2 { font-size: 20px; color: #FFD700; margin-bottom: 6px; letter-spacing: 2px; }
+    .intro-panel .intro-sub { font-size: 11px; color: #c89060; margin-bottom: 18px; }
+    .intro-panel .intro-text {
+      font-size: 14px; line-height: 1.85; color: #e8d8c8;
+      text-align: justify; min-height: 200px;
+    }
+    .intro-skip {
+      position: fixed; top: 18px; right: 18px; z-index: 61;
+      background: rgba(140,60,50,0.85); border: 1px solid rgba(255,200,120,0.35);
+      color: #fff; padding: 8px 18px; border-radius: 20px;
+      font-size: 12px; cursor: pointer; display: none;
+    }
+    .intro-skip.show { display: block; }
+    .intro-skip:hover { background: #8a4038; }
+    body.intro-active .scene-nav,
+    body.intro-active .mini-panel,
+    body.intro-active .top-tag { opacity: 0.15; pointer-events: none; }
+    #hiddenOverlay {
+      position: fixed; inset: 0; z-index: 220; display: none;
+      align-items: center; justify-content: center;
+      background: linear-gradient(165deg, rgba(18,8,20,0.97), rgba(8,6,14,0.99));
+      padding: 28px 20px;
+    }
+    #hiddenOverlay.show { display: flex; }
+    .hidden-panel {
+      width: min(720px, 94vw); max-height: 82vh; overflow-y: auto;
+      background: rgba(14,8,18,0.94); border: 2px solid #6a3080;
+      border-radius: 18px; padding: 28px 32px;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+    }
+    .hidden-panel .hidden-badge-tag {
+      display: inline-block; font-size: 10px; color: #FFD700;
+      border: 1px solid rgba(255,215,0,0.45); border-radius: 10px;
+      padding: 3px 10px; margin-bottom: 14px;
+    }
+    .hidden-panel h2 { font-size: 18px; color: #d8a8ff; margin-bottom: 6px; letter-spacing: 0.06em; }
+    .hidden-panel .hidden-unlock { font-size: 11px; color: #a080c0; margin-bottom: 10px; }
+    .hidden-panel h3 { font-size: 15px; color: #FFD700; margin-bottom: 14px; }
+    .hidden-panel .hidden-text {
+      font-size: 14px; line-height: 1.85; color: #e8d8e8;
+      text-align: justify; min-height: 180px; white-space: pre-wrap;
+    }
+    .hidden-panel .hidden-text .intro-cursor {
+      display: inline-block; width: 2px; height: 1em;
+      background: #d8a8ff; margin-left: 2px; vertical-align: text-bottom;
+      animation: introBlink 0.9s step-end infinite;
+    }
+    @keyframes introBlink { 50% { opacity: 0; } }
+    .hidden-hint { font-size: 11px; color: #888; text-align: center; margin-top: 16px; }
+    .hidden-skip-btn {
+      display: block; margin: 14px auto 0; background: transparent;
+      border: 1px solid rgba(255,255,255,0.22); color: #aaa;
+      padding: 6px 16px; border-radius: 12px; font-size: 11px; cursor: pointer;
+    }
+    .hidden-skip-btn:hover { color: #fff; border-color: rgba(255,255,255,0.45); }
+    body.hidden-active .scene-nav,
+    body.hidden-active .mini-panel,
+    body.hidden-active .top-tag { opacity: 0.15; pointer-events: none; }
+  </style>
+  <link rel="stylesheet" href="assets/badge-reveal.css" />
+</head>
+<body>
+<div id="introOverlay">
+  <div class="intro-panel">
+    <h2>初心广场</h2>
+    <div class="intro-sub">党建 + 初心 · 红色教育基地</div>
+    <div class="intro-text" id="introText"></div>
+  </div>
+</div>
+<button class="intro-skip" id="introSkipBtn" type="button" onclick="skipIntroReading()">跳过朗读</button>
+
+<div id="hiddenOverlay">
+  <div class="hidden-panel">
+    <div class="hidden-badge-tag">🔓 隐藏篇章已解锁 · 初心铭记者</div>
+    <h2>隐藏篇章：《老交通员口述史》</h2>
+    <div class="hidden-unlock">解锁条件：获得「初心铭记者」徽章</div>
+    <h3>梁波牺牲经过</h3>
+    <div class="hidden-text" id="hiddenText"></div>
+    <div class="hidden-hint" id="hiddenHint">深度阅读中…</div>
+    <button type="button" class="hidden-skip-btn" id="hiddenSkipBtn" onclick="skipHiddenReading()">跳过朗读</button>
+  </div>
+</div>
+
+<div id="canvas-container"></div>
+<div id="bubble-layer"></div>
+<div id="sceneLoading"><span id="loadTitle">加载初心广场场景…</span><div id="loadProgress"></div></div>
+
+<div id="protocolWarn">
+  <div class="warn-box">
+    <h3>⚠️ 请用 Live Server 打开</h3>
+    <p>不能直接双击打开 HTML 文件。<br>请在 VS Code 中右键 <b>chuxin.html</b> → <b>Open with Live Server</b>，<br>然后用浏览器访问 <b>http://localhost:5500/chuxin.html</b><br>（需通过本地服务器加载 GLB 模型）</p>
+  </div>
+</div>
+
+<div class="top-tag" id="topTag">🏛️ 初心广场 · 对话历史</div>
+<button class="audio-btn" id="audioBtn" onclick="toggleAudio()">🔊</button>
+
+<nav class="scene-nav" id="sceneNav">
+  <button data-scene="1" onclick="switchScene(1)">场景一·浮雕墙</button>
+  <button data-scene="2" onclick="switchScene(2)">场景二·初心亭</button>
+  <button data-scene="3" onclick="switchScene(3)">场景三·誓言</button>
+</nav>
+
+<div class="mini-panel">
+  <div class="mini-year" id="miniYear">1937—1947</div>
+  <div class="mini-title" id="miniTitle">浮雕墙前的沉思</div>
+  <div class="mini-dialogue" id="miniDialogue">等待剧情…</div>
+</div>
+
+<div class="narration-bar" id="narrationBar"></div>
+
+<div class="choice-overlay" id="choiceModal">
+  <div class="choice-modal">
+    <h3 id="choiceTitle">你的选择</h3>
+    <p class="prompt" id="choicePrompt"></p>
+    <div id="choiceBtns"></div>
+  </div>
+</div>
+
+<div class="result-popup" id="resultPopup">
+  <div class="result-icon" id="resultIcon">✅</div>
+  <div class="result-title" id="resultTitle">任务成功</div>
+  <div class="result-desc" id="resultDesc"></div>
+  <button class="result-close" onclick="closeResult()">继续</button>
+</div>
+
+<script src="assets/badge-reveal.js"></script>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+const BADGE_KEY = 'chuxin_badges_v1';
+const HIDDEN_SEEN_KEY = 'chuxin_hidden_seen_v1';
+const GROUND_Y = 0;
+
+function returnToCheckin() {
+  const params = new URLSearchParams(window.location.search);
+  const spotId = params.get('spot') || '';
+  try {
+    if (window.parent && window.parent !== window) {
+      window.parent.postMessage({ type: 'jiankou-scene-complete', spotId: spotId }, '*');
+      return;
+    }
+  } catch (e) {}
+  try { sessionStorage.setItem('jiankouCompletedSpot', spotId); } catch (e) {}
+  window.location.href = new URL('../index.html', window.location.href).href;
+}
+
+const INTRO_TEXT =
+  '初心广场是近年为传承红色基因、开展党性教育而修建的红色文化核心区域，集中了多项纪念设施，是 "党建 + 初心" 红色教育基地的组成部分。' +
+  '广场上设有大型革命英雄浮雕墙，长 20 米、高 3 米，以八个主题展现了妙峰山地区从建立革命武装、成立宛平政府，到护送国际友人林迈可、传递解放战争情报直至新中国成立的光辉历程。' +
+  '浮雕记录了京西革命史上第一位烈士赵万庆的英勇事迹 —— 他在给国民抗日军送信途中，遭日军飞机轰炸牺牲，用生命换来的情报使部队安全转移到了抗日根据地。' +
+  '广场旁的初心亭内，详细记述了平西情报联络站第三任站长梁波烈士的事迹，他于 1947 年 9 月在执行接头任务返回途中遇敌，突围时英勇牺牲，年仅三十七岁。' +
+  '广场与平西情报联络站纪念馆、英雄山共同构成了一个完整的红色教育路线。';
+
+const NARRATION_MP3 = {
+  intro:  'audio/chuxin/intro.mp3',
+  scene1: 'audio/chuxin/scene1.mp3',
+  // scene2 使用浏览器配音（旁白 + 老人对白）
+  scene3: 'audio/chuxin/scene3.mp3',
+};
+let activeNarrationAudio = null;
+const narrationMp3Cache = {};
+let dialogueBubbleTimer = null;
+
+function stopNarrationAudio() {
+  if (activeNarrationAudio) {
+    activeNarrationAudio.pause();
+    activeNarrationAudio.currentTime = 0;
+    activeNarrationAudio = null;
+  }
+}
+
+let dialogueBubblePollId = null;
+
+function clearDialogueBubbleTimer() {
+  if (dialogueBubbleTimer) {
+    clearTimeout(dialogueBubbleTimer);
+    dialogueBubbleTimer = null;
+  }
+  if (dialogueBubblePollId) {
+    clearInterval(dialogueBubblePollId);
+    dialogueBubblePollId = null;
+  }
+}
+
+function scheduleInAudioDialogueBubble(dialogue, dialogueAt) {
+  clearDialogueBubbleTimer();
+  if (!dialogue) return;
+  const key = dialogue.speaker || (dialogue.name === '老人' ? 'elder' : null);
+  if (!key || !actors[key]) return;
+  let shown = false;
+  const show = () => {
+    if (shown) return;
+    shown = true;
+    clearDialogueBubbleTimer();
+    if (activeNarrationAudio) activeNarrationAudio.removeEventListener('timeupdate', onTime);
+    if (!actors[key]) return;
+    showSpeechBubble(key, dialogue.name, dialogue.text);
+    document.getElementById('miniDialogue').textContent = dialogue.name + '：「' + dialogue.text + '」';
+    if (key === 'elder') applyCamera(SCENES[2].dialogueCamera || getScene().camera);
+  };
+  const onTime = () => {
+    const audio = activeNarrationAudio;
+    if (audio && audio.currentTime >= dialogueAt) show();
+  };
+  const audio = activeNarrationAudio;
+  const arm = () => {
+    const at = typeof dialogueAt === 'number' ? dialogueAt : NaN;
+    if (!isFinite(at) || at < 0) {
+      const dur = audio && isFinite(audio.duration) ? audio.duration : 0;
+      dialogueBubbleTimer = setTimeout(show, dur > 0 ? Math.max(500, dur * 1000 * 0.7) : 8000);
+      return;
+    }
+    audio.addEventListener('timeupdate', onTime);
+    dialogueBubblePollId = setInterval(() => {
+      const a = activeNarrationAudio;
+      if (a && a.currentTime >= at) show();
+    }, 30);
+  };
+  if (audio) {
+    if (isFinite(audio.duration) && audio.duration > 0) arm();
+    else audio.addEventListener('loadedmetadata', arm, { once: true });
+  }
+}
+
+function playDocAudio(key, textFallback, onEnd) {
+  if (!audioOn) { if (onEnd) onEnd(); return; }
+  const src = NARRATION_MP3[key];
+  if (!src) {
+    speakTextFallback(textFallback, onEnd);
+    return;
+  }
+  if (window.speechSynthesis) window.speechSynthesis.cancel();
+  stopNarrationAudio();
+  let audio = narrationMp3Cache[key];
+  if (!audio) {
+    audio = new Audio(src);
+    audio.preload = 'auto';
+    narrationMp3Cache[key] = audio;
+  } else {
+    audio.pause();
+    audio.currentTime = 0;
+  }
+  activeNarrationAudio = audio;
+  const cleanup = () => {
+    audio.removeEventListener('ended', onDone);
+    audio.removeEventListener('error', onFail);
+  };
+  const onDone = () => {
+    cleanup();
+    if (activeNarrationAudio === audio) activeNarrationAudio = null;
+    if (onEnd) onEnd();
+  };
+  const onFail = () => {
+    cleanup();
+    if (activeNarrationAudio === audio) activeNarrationAudio = null;
+    speakTextFallback(textFallback, onEnd);
+  };
+  audio.addEventListener('ended', onDone);
+  audio.addEventListener('error', onFail);
+  audio.play().catch(onFail);
+}
+
+function speakTextFallback(text, onEnd) {
+  if (!audioOn || !text) { if (onEnd) onEnd(); return; }
+  if (window.speechSynthesis) window.speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = 'zh-CN';
+  u.rate = 0.95;
+  u.onend = () => { if (onEnd) onEnd(); };
+  u.onerror = () => { if (onEnd) onEnd(); };
+  window.speechSynthesis.speak(u);
+}
+
+const HIDDEN_TEXT =
+  '1947 年 9 月 17 日，北平城中的交通员要来汇报重要情报。平西情报联络站第三任站长梁波坚持自己出山，到七王坟与交通员接头。\n\n' +
+  '第二天城里的交通员来了，梁波和他交谈了一个多小时。离开七王坟时天已擦黑。此时敌人已经逼近北安河，但梁波决定当夜留在秀峰寺，第二天早晨进山。\n\n' +
+  '9 月 19 日凌晨 4 点，敌人从北安河向山里发起进攻，又绕到山后包围。梁波蹲在山洼里，把背包里的文件全部烧掉 —— 里面有个小本子记录着北平地下交通员的代号。他对身边的同志说：“如果走不了，我们就隐蔽起来。记住，我们联络员决不能被敌人俘虏，只能牺牲！”\n\n' +
+  '梁波被敌人团团围住，强拉下山。他突然甩开敌人的手，破口大骂。凶狠的敌人用刺刀刺进他的胸膛。梁波用生命践行了自己的诺言。\n\n' +
+  '梁波牺牲时年仅 37 岁，他的遗体最初安葬在妙峰山的山坡上 —— 后来百姓称之为 “英雄山”，后移葬八宝山革命公墓。';
+
+let introActive = false;
+let introFinished = false;
+let introTypeTimer = null;
+let introResolve = null;
+let hiddenActive = false;
+let hiddenTypeTimer = null;
+let hiddenChapterSkipRequested = false;
+let pendingHiddenChapter = false;
+
+const MODEL_CANDIDATES = {
+  reliefWall: ['models/chuxinguangchang/fudiaoqiang.glb'],
+  pavilion: ['models/chuxinguangchang/chuxinting.glb'],
+  stele: ['models/chuxinguangchang/jinianbei.glb'],
+  elder: ['models/chuxinguangchang/laoren.glb'],
+  messageWall: ['models/chuxinguangchang/liuyanqiang.glb'],
+};
+
+// 场景模型白名单
+// 场景一：浮雕墙 + 树木
+// 场景二：初心亭 + 亭内纪念碑 + 老人
+// 场景三：留言墙
+
+const SCENES = {
+  1: {
+    tag: '场景一 · 浮雕墙前的沉思', year: '1937年', title: '革命英雄浮雕墙',
+    narration:
+      '你站在初心广场的革命英雄浮雕墙前。长 20 米、高 3 米的墙体上，八个主题依次展开：国民抗日军的旗帜在山头飘扬，宛平县政府在炮火中成立，村民肩挑背扛给部队送粮，交通员在夜色中传递情报……' +
+      '你的目光停在其中一幅浮雕上 —— 一群年轻人站在山头上，红旗猎猎作响。那是 1937 年 "国民抗日军" 在妙峰山金顶宣告成立的情景，北平地区第一支民间抗日武装。' +
+      '浮雕下方刻着一行小字："山凤，17 岁，报名参军。"',
+    prompt: '你忍不住问道…',
+    choices: [
+      { label: 'A', text: '"她后来怎么样了？"', success: true,
+        result: '✅ 回答正确！你了解了 "山凤" 烈士的英勇事迹，读懂了年轻革命者的个体牺牲，真正读懂了浮雕墙的意义。进入下一处打卡点。',
+        speech: '她后来怎么样了？' },
+      { label: 'B', text: '"这是什么队伍？"', success: false,
+        result: '❌ 作答偏离核心。错误解释：浮雕墙的核心意义是铭记每一位革命者的牺牲，而非仅了解队伍的整体历史。请重试。' },
+      { label: 'C', text: '"这里一共刻了多少人？"', success: false,
+        result: '❌ 作答流于表面。错误解释：关注人数只是基础，更重要的是读懂每一个形象背后的付出与信仰。请重试。' },
+    ],
+    camera: { pos: [0, 1.5, 7], look: [0, 1.2, 0] },
+    models: ['reliefWall'],
+  },
+  2: {
+    tag: '场景二 · 初心亭里的故事', year: '1947年9月', title: '梁波烈士',
+    narration:
+      '广场旁的初心亭内，一块石碑记述着第三任站长梁波烈士的事迹。你读着碑文 ——' +
+      '"梁波，1947 年 9 月，执行接头任务返回途中遇敌，突围时英勇牺牲，年仅 37 岁。"' +
+      '一位老人站在亭子旁，见你驻足，缓缓开口。',
+    dialogue: { speaker: 'elder', name: '老人', text: '你是来看梁站长的？' },
+    dialogueInAudio: false,
+    prompt: '一位老人站在亭子旁，见你驻足，缓缓开口。你怎么回应？',
+    choices: [
+      { label: 'A', text: '"老人家，您认识他？"', success: false,
+        result: '❌ 作答未抓住核心。错误解释：亲历者的口述是历史补充，但梁波烈士事迹的核心是用生命完成使命的初心信仰。请重试。' },
+      { label: 'B', text: '"他牺牲前完成了任务吗？"', success: true,
+        result: '✅ 回答正确！你读懂了梁波烈士以生命传递情报、践行使命的初心，理解了隐蔽战线工作者 "情报重于生命" 的牺牲价值。进入下一处打卡点。',
+        speech: '他牺牲前完成了任务吗？' },
+      { label: 'C', text: '默默鞠躬，转身离开', success: false,
+        result: '❌ 作答不够深入。错误解释：静默致敬是基础敬意，更重要的是理解烈士事迹背后的信仰与担当。请重试。' },
+    ],
+    camera: { pos: [1.0, 1.55, 5.2], look: [0.2, 1.25, -1.8] },
+    dialogueCamera: { pos: [1.15, 1.62, 3.4], look: [2.35, 1.52, 0.45] },
+    models: ['pavilion', 'stele', 'elder'],
+  },
+  3: {
+    tag: '场景三 · 誓言', year: '今日', title: '初心留言墙',
+    narration:
+      '广场一侧设有 "初心留言墙"，上面贴满了游客的手写便签。有学生、有党员、有老人、有孩子。你拿起一枚便签，看到上面写着：' +
+      '"我曾在情报站工作过三年，不是同志，是后来才知道我送的每一封信都是情报。我叫不出那些名字，但我记得每一张脸。"',
+    prompt: '你拿起笔，想在留言墙上写点什么。',
+    choices: [
+      { label: 'A', text: '"英雄无名，精神永存。"', success: true,
+        result: '✅ 回答正确！你写下的寄语，是对所有无名英雄最郑重的致敬，完成了初心广场的全部学习任务。\n🎉 恭喜完成初心广场全部学习任务，解锁专属徽章：初心铭记者',
+        badge: '初心铭记者', final: true },
+      { label: 'B', text: '"历史不会忘记。"', success: false,
+        result: '❌ 作答不够贴合主题。错误解释："历史不会忘记" 是客观陈述，而初心广场的核心是唤起每个人的主动致敬与精神传承。请重试。' },
+      { label: 'C', text: '留下自己的名字和日期', success: false,
+        result: '❌ 作答流于形式。错误解释：留下名字只是到场证明，更重要的是传递对英雄的敬意与铭记的决心。请重试。' },
+    ],
+    camera: { pos: [0, 1.55, 6], look: [0, 1.5, -3] },
+    models: ['messageWall'],
+  },
+};
+
+let renderer, scene3d, camera, gltfLoader;
+let sceneObjects = [];
+let currentScene = 1;
+let sceneReady = false;
+let sceneBuilding = false;
+let sceneLoadId = 0;
+const modelCache = {};
+const resolvedModelUrls = {};
+const modelLoading = {};
+let audioOn = true;
+let pendingNext = null;
+let pendingRetry = false;
+let autoTimer = null;
+let animTick = 0;
+let elderRef = null;
+let steleRef = null;
+let pavilionRef = null;
+let reliefWallRef = null;
+let messageWallRef = null;
+let actors = {};
+let activeBubble = null;
+let dialogueCameraActive = false;
+let choiceHandled = false;
+let openingGen = 0;
+let speechGen = 0;
+const _proj = new THREE.Vector3();
+const _worldHead = new THREE.Vector3();
+
+function hideSpeechBubble() {
+  if (activeBubble) {
+    activeBubble.el.remove();
+    activeBubble = null;
+  }
+  dialogueCameraActive = false;
+}
+
+function showSpeechBubble(key, name, text) {
+  hideSpeechBubble();
+  const layer = document.getElementById('bubble-layer');
+  if (!layer) return;
+  const el = document.createElement('div');
+  el.className = 'speech-bubble show';
+  const line = (text || '').replace(/[<>&]/g, (ch) => ({ '<':'&lt;', '>':'&gt;', '&':'&amp;' }[ch]));
+  el.innerHTML = '<div class="speaker-name">' + (name || '') + '</div><div class="bubble-text">' + line + '</div>';
+  layer.appendChild(el);
+  activeBubble = { el, key };
+  if (currentScene === 2 && key === 'elder') dialogueCameraActive = true;
+  updateBubblePosition();
+  if (!actors[key]) {
+    el.style.left = '50%';
+    el.style.top = '42%';
+  }
+}
+
+function revealDialogueThenChoices(dialogue, openChoices) {
+  if (dialogue) {
+    const key = dialogue.speaker || (dialogue.name === '老人' ? 'elder' : null);
+    if (key) {
+      showSpeechBubble(key, dialogue.name, dialogue.text);
+      if (key === 'elder') applyCamera(SCENES[2].dialogueCamera || getScene().camera);
+    }
+    document.getElementById('miniDialogue').textContent = dialogue.name + '：「' + dialogue.text + '」';
+    setTimeout(() => { if (openChoices) openChoices(); }, 1800);
+  } else if (openChoices) {
+    openChoices();
+  }
+}
+
+function updateBubblePosition() {
+  if (!activeBubble || !actors[activeBubble.key]) return;
+  const a = actors[activeBubble.key];
+  _worldHead.set(a.x, a.headY, a.z);
+  _proj.copy(_worldHead).project(camera);
+  const x = (_proj.x * 0.5 + 0.5) * window.innerWidth;
+  const y = (-_proj.y * 0.5 + 0.5) * window.innerHeight - 14;
+  activeBubble.el.style.left = x + 'px';
+  activeBubble.el.style.top = y + 'px';
+}
+
+function registerElderActor(model) {
+  if (!model) return;
+  const box = new THREE.Box3().setFromObject(model);
+  const center = box.getCenter(new THREE.Vector3());
+  actors.elder = {
+    x: center.x,
+    z: center.z,
+    headY: box.max.y - Math.max(0.08, (box.max.y - box.min.y) * 0.06),
+  };
+}
+
+function resetModelTransform(obj) {
+  obj.scale.set(1, 1, 1);
+  obj.position.set(0, 0, 0);
+  obj.rotation.set(0, 0, 0);
+}
+
+function fitModelToTarget(obj, targetSize, yOffset = 0) {
+  const box = new THREE.Box3().setFromObject(obj);
+  const size = box.getSize(new THREE.Vector3());
+  const maxDim = Math.max(size.x, size.y, size.z);
+  if (maxDim < 0.01) return;
+  const scale = targetSize / maxDim;
+  obj.scale.setScalar(scale);
+  const box2 = new THREE.Box3().setFromObject(obj);
+  obj.position.y -= box2.min.y;
+  obj.position.y += yOffset;
+}
+
+function buildBrickGround() {
+  const g = new THREE.Group();
+  g.name = 'BrickGround';
+  const baseMat = new THREE.MeshStandardMaterial({ color: 0x8a8078, roughness: 0.94 });
+  const brickMat = new THREE.MeshStandardMaterial({ color: 0x9a9088, roughness: 0.9 });
+  const base = new THREE.Mesh(new THREE.BoxGeometry(50, 0.1, 40), baseMat);
+  base.position.set(0, 0.05, 2);
+  base.receiveShadow = true;
+  g.add(base);
+  for (let x = -22; x <= 22; x += 2.0) {
+    for (let z = -16; z <= 16; z += 2.0) {
+      const brick = new THREE.Mesh(new THREE.BoxGeometry(1.85, 0.05, 0.92), brickMat);
+      brick.position.set(x, 0.12, z);
+      g.add(brick);
+    }
+  }
+  add(g);
+}
+
+function buildScene1Environment() {
+  scene3d.fog = new THREE.Fog(0xc8c0b0, 35, 120);
+  buildBrickGround();
+  const trunkMat = new THREE.MeshStandardMaterial({ color: 0x3a2510, roughness: 0.95 });
+  const greens = [0x2a6a2a, 0x3a8a3a, 0x4a9a4a];
+  [[-18, -8], [18, -6], [-20, 6], [20, 8], [-14, 10], [14, -10],
+   [-12, -12], [12, 12], [-22, 0], [22, 2]].forEach(([x, z], i) => {
+    const h = 6 + (i % 3) * 1.5;
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.22, h, 6), trunkMat);
+    trunk.position.set(x, h / 2, z);
+    trunk.castShadow = true;
+    add(trunk);
+    const crown = new THREE.Mesh(
+      new THREE.SphereGeometry(1.8, 6, 6),
+      new THREE.MeshStandardMaterial({ color: greens[i % greens.length], roughness: 0.85 }),
+    );
+    crown.position.set(x, h + 1.1, z);
+    crown.scale.set(1, 1.3, 1);
+    add(crown);
+  });
+}
+
+function buildScene1Models() {
+  if (!reliefWallRef) return;
+  resetModelTransform(reliefWallRef);
+  fitModelToTarget(reliefWallRef, 8, GROUND_Y);
+  reliefWallRef.position.set(0, reliefWallRef.position.y, -1.5);
+  const box = new THREE.Box3().setFromObject(reliefWallRef);
+  const ctr = box.getCenter(new THREE.Vector3());
+  SCENES[1].camera = {
+    pos: [ctr.x, ctr.y + 0.35, box.max.z + 5.2],
+    look: [ctr.x, ctr.y + 0.2, ctr.z],
+  };
+}
+
+function buildScene2Models() {
+  if (!pavilionRef) return;
+
+  resetModelTransform(pavilionRef);
+  fitModelToTarget(pavilionRef, 5, GROUND_Y);
+  pavilionRef.position.set(0, pavilionRef.position.y, 0);
+
+  const pBox = new THREE.Box3().setFromObject(pavilionRef);
+  const pCtr = pBox.getCenter(new THREE.Vector3());
+  const pSize = pBox.getSize(new THREE.Vector3());
+
+  if (steleRef) {
+    resetModelTransform(steleRef);
+    fitModelToTarget(steleRef, Math.min(2.5, pSize.x * 0.45), GROUND_Y);
+    const stBox = new THREE.Box3().setFromObject(steleRef);
+    const stCtr = stBox.getCenter(new THREE.Vector3());
+    steleRef.position.set(
+      pCtr.x - stCtr.x,
+      GROUND_Y - stBox.min.y + 1,
+      pCtr.z - stCtr.z,
+    );
+  }
+
+  if (elderRef) {
+    resetModelTransform(elderRef);
+    fitModelToTarget(elderRef, 1.65, GROUND_Y);
+    elderRef.position.set(
+      pBox.max.x + pSize.x * 0.18,
+      elderRef.position.y,
+      pCtr.z + pSize.z * 0.08,
+    );
+    elderRef.rotation.y = -Math.PI * 0.42;
+    registerElderActor(elderRef);
+  }
+
+  const pCtr2 = pBox.getCenter(new THREE.Vector3());
+  const eBox = elderRef ? new THREE.Box3().setFromObject(elderRef) : null;
+  const elderCtr = eBox ? eBox.getCenter(new THREE.Vector3()) : null;
+  const elderHeadY = eBox ? eBox.max.y - (eBox.max.y - eBox.min.y) * 0.12 : 1.5;
+
+  SCENES[2].camera = {
+    pos: [pCtr2.x, pBox.min.y + pSize.y * 0.34, pBox.max.z + pSize.z * 1.1],
+    look: [pCtr2.x, pBox.min.y + pSize.y * 0.38, pCtr2.z],
+  };
+
+  if (elderCtr) {
+    SCENES[2].dialogueCamera = {
+      pos: [elderCtr.x - 0.65, elderHeadY + 0.02, elderCtr.z + 1.05],
+      look: [elderCtr.x + 0.02, elderHeadY - 0.04, elderCtr.z + 0.04],
+    };
+  }
+}
+
+function buildScene3Models() {
+  if (!messageWallRef) return;
+  resetModelTransform(messageWallRef);
+  fitModelToTarget(messageWallRef, 7, GROUND_Y);
+  messageWallRef.position.set(0, messageWallRef.position.y, 0);
+  const box = new THREE.Box3().setFromObject(messageWallRef);
+  const ctr = box.getCenter(new THREE.Vector3());
+  SCENES[3].camera = {
+    pos: [ctr.x, ctr.y + 0.02, box.max.z + 1.5],
+    look: [ctr.x, ctr.y + 0.02, ctr.z],
+  };
+}
+
+function setSceneLoading(on, msg) {
+  const el = document.getElementById('sceneLoading');
+  const title = document.getElementById('loadTitle');
+  const prog = document.getElementById('loadProgress');
+  if (msg && title) title.textContent = msg;
+  if (prog && !on) prog.textContent = '';
+  el.classList.toggle('show', on);
+}
+
+function setLoadProgress(text) {
+  const prog = document.getElementById('loadProgress');
+  if (prog) prog.textContent = text || '';
+}
+
+function showProtocolWarning(show) {
+  document.getElementById('protocolWarn').classList.toggle('show', show);
+}
+
+function updateUI() {
+  const s = getScene();
+  document.getElementById('topTag').textContent = '🏛️ ' + s.tag;
+  document.getElementById('miniYear').textContent = s.year;
+  document.getElementById('miniTitle').textContent = s.title;
+  document.querySelectorAll('.scene-nav button').forEach(btn => {
+    btn.classList.toggle('active', parseInt(btn.dataset.scene, 10) === currentScene);
+  });
+}
+
+function add(obj) {
+  scene3d.add(obj);
+  sceneObjects.push(obj);
+}
+
+function disposeObject(obj) {
+  if (!obj) return;
+  if (obj.dispose) obj.dispose();
+  else if (obj.traverse) {
+    obj.traverse((c) => {
+      if (c.geometry) c.geometry.dispose();
+      if (c.material) {
+        if (Array.isArray(c.material)) c.material.forEach(m => m.dispose());
+        else c.material.dispose();
+      }
+    });
+  }
+}
+
+function clearScene() {
+  const toRemove = [...scene3d.children];
+  toRemove.forEach((child) => {
+    scene3d.remove(child);
+    disposeObject(child);
+  });
+  sceneObjects.length = 0;
+  elderRef = null;
+  steleRef = null;
+  pavilionRef = null;
+  reliefWallRef = null;
+  messageWallRef = null;
+  delete actors.elder;
+}
+
+function stripReliefWallMeshes(root) {
+  if (!root) return;
+  const toRemove = [];
+  root.traverse((child) => {
+    const n = (child.name || '').toLowerCase();
+    if (n.includes('浮雕') || n.includes('fudiao') || n.includes('reliefwall') || n.includes('fudiaoqiang')) {
+      toRemove.push(child);
+    }
+  });
+  toRemove.forEach((child) => {
+    child.visible = false;
+    if (child.parent) child.parent.remove(child);
+  });
+}
+
+function enforceSceneIsolation(sceneNum) {
+  const allowed = new Set(SCENES[sceneNum].models || []);
+  for (let i = sceneObjects.length - 1; i >= 0; i--) {
+    const o = sceneObjects[i];
+    const t = o.userData?.propType;
+    if (t && !allowed.has(t)) {
+      scene3d.remove(o);
+      disposeObject(o);
+      sceneObjects.splice(i, 1);
+      console.warn('⛔ 已移除不属于场景' + sceneNum + '的模型:', t);
+    }
+  }
+}
+
+function getScene() { return SCENES[currentScene]; }
+
+function tryLoadUrl(url) {
+  return new Promise((resolve) => {
+    gltfLoader.load(
+      url,
+      (gltf) => resolve({ ok: true, scene: gltf.scene, url }),
+      undefined,
+      () => resolve({ ok: false }),
+    );
+  });
+}
+
+async function fetchModel(key, sceneNum) {
+  const allowed = SCENES[sceneNum].models || [];
+  if (!allowed.includes(key)) return false;
+
+  if (modelCache[key]) return true;
+  if (modelLoading[key]) {
+    await modelLoading[key];
+    return !!modelCache[key];
+  }
+
+  const candidates = MODEL_CANDIDATES[key] || [];
+  modelLoading[key] = (async () => {
+    for (const url of candidates) {
+      const result = await tryLoadUrl(url);
+      if (result.ok) {
+        modelCache[key] = result.scene;
+        resolvedModelUrls[key] = result.url;
+        console.log('✅ 场景' + sceneNum + ' 已加载模型:', key, '←', result.url);
+        return;
+      }
+    }
+    console.warn('⚠️ 未找到模型:', key, candidates);
+  })();
+
+  try {
+    await modelLoading[key];
+  } finally {
+    delete modelLoading[key];
+  }
+  return !!modelCache[key];
+}
+
+function instantiateModel(key, sceneNum) {
+  if (sceneNum !== 1 && key === 'reliefWall') return null;
+  const template = modelCache[key];
+  if (!template) return null;
+  const wrap = new THREE.Group();
+  wrap.userData.propType = key;
+  wrap.userData.sceneNum = sceneNum;
+  const model = template.clone(true);
+  if (sceneNum !== 1) stripReliefWallMeshes(model);
+  wrap.add(model);
+  return wrap;
+}
+
+async function placeSceneModels(sceneNum, loadId) {
+  const keys = SCENES[sceneNum].models || [];
+  elderRef = null;
+  steleRef = null;
+  pavilionRef = null;
+  reliefWallRef = null;
+  messageWallRef = null;
+  delete actors.elder;
+
+  await Promise.all(keys.map((key) => fetchModel(key, sceneNum)));
+  if (loadId !== sceneLoadId) return 0;
+
+  let placed = 0;
+  for (const key of keys) {
+    if (loadId !== sceneLoadId) return placed;
+    if (sceneNum !== 1 && key === 'reliefWall') continue;
+    const wrap = instantiateModel(key, sceneNum);
+    if (!wrap) continue;
+    const model = wrap.children[0];
+    model.traverse((c) => {
+      if (c.isMesh) { c.castShadow = true; c.receiveShadow = true; }
+    });
+    add(wrap);
+    if (key === 'elder') elderRef = model;
+    if (key === 'stele') steleRef = model;
+    if (key === 'pavilion') pavilionRef = model;
+    if (key === 'reliefWall') reliefWallRef = model;
+    if (key === 'messageWall') messageWallRef = model;
+    placed++;
+    console.log('✅ 场景' + sceneNum + ' 已放入:', key, '←', resolvedModelUrls[key] || '');
+  }
+
+  if (loadId !== sceneLoadId) return placed;
+
+  if (sceneNum === 1 && reliefWallRef) buildScene1Models();
+  if (sceneNum === 2) buildScene2Models();
+  if (sceneNum === 3 && messageWallRef) buildScene3Models();
+  enforceSceneIsolation(sceneNum);
+  applyCamera(getScene().camera);
+
+  return placed;
+}
+
+function setupLights() {
+  add(new THREE.AmbientLight(0xfff0e0, 0.5));
+  add(new THREE.HemisphereLight(0xffeedd, 0x4a3028, 0.35));
+  const sun = new THREE.DirectionalLight(0xfff4e0, 0.8);
+  sun.position.set(8, 14, 10);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(512, 512);
+  add(sun);
+}
+
+function applyCamera(camCfg) {
+  if (!camCfg) return;
+  camera.position.set(...camCfg.pos);
+  camera.lookAt(...camCfg.look);
+}
+
+function resetSceneFlowState() {
+  openingGen++;
+  speechGen++;
+  choiceHandled = false;
+  pendingNext = null;
+  pendingRetry = false;
+  pendingHiddenChapter = false;
+  clearTimeout(autoTimer);
+  hideChoiceModal();
+  document.getElementById('resultPopup').classList.remove('show');
+}
+
+async function buildScene(num, onDone) {
+  const loadId = ++sceneLoadId;
+  stopSpeech();
+  resetSceneFlowState();
+  sceneBuilding = true;
+  sceneReady = false;
+  setSceneLoading(true, '加载场景 ' + num + '…');
+  clearScene();
+  hideSpeechBubble();
+
+  scene3d.fog = null;
+  scene3d.background = new THREE.Color(num === 1 ? 0xc8c0b0 : 0xb8b0a4);
+  if (num === 1) buildScene1Environment();
+  else if (num === 2) buildBrickGround();
+  setupLights();
+
+  const placed = await placeSceneModels(num, loadId);
+  if (loadId !== sceneLoadId) return;
+
+  applyCamera(getScene().camera);
+  sceneBuilding = false;
+  sceneReady = true;
+  setSceneLoading(false);
+  updateUI();
+  if (placed === 0) setLoadProgress('模型加载失败，请刷新重试');
+  if (onDone) {
+    const gen = openingGen;
+    setTimeout(() => {
+      if (gen !== openingGen || currentScene !== num || sceneBuilding) return;
+      onDone();
+    }, 400);
+  }
+}
+
+function switchScene(n) {
+  if (sceneBuilding || n === currentScene) return;
+  if (introActive) finishIntro();
+  if (hiddenActive) {
+    hiddenChapterSkipRequested = true;
+    hiddenActive = false;
+    stopHidden();
+    document.getElementById('hiddenOverlay').classList.remove('show');
+    document.body.classList.remove('hidden-active');
+  }
+  stopSpeech();
+  hideSpeechBubble();
+  currentScene = n;
+  buildScene(n, playOpening);
+}
+
+function hasBadge(name) {
+  try {
+    const list = JSON.parse(localStorage.getItem(BADGE_KEY) || '[]');
+    return list.includes(name);
+  } catch { return false; }
+}
+
+function awardBadge(name) {
+  try {
+    const list = JSON.parse(localStorage.getItem(BADGE_KEY) || '[]');
+    if (!list.includes(name)) {
+      list.push(name);
+      localStorage.setItem(BADGE_KEY, JSON.stringify(list));
+    }
+  } catch { /* ignore */ }
+}
+
+function stopSpeech() {
+  if (window.speechSynthesis) window.speechSynthesis.cancel();
+  stopNarrationAudio();
+  clearDialogueBubbleTimer();
+  document.getElementById('narrationBar').classList.remove('show');
+  hideSpeechBubble();
+}
+
+function hasHiddenSeen() {
+  try { return localStorage.getItem(HIDDEN_SEEN_KEY) === '1'; } catch { return false; }
+}
+
+function markHiddenSeen() {
+  try { localStorage.setItem(HIDDEN_SEEN_KEY, '1'); } catch { /* ignore */ }
+}
+
+function stopHidden() {
+  if (hiddenTypeTimer) {
+    clearTimeout(hiddenTypeTimer);
+    hiddenTypeTimer = null;
+  }
+  if (window.speechSynthesis) window.speechSynthesis.cancel();
+  stopNarrationAudio();
+}
+
+function speakLongText(text, onEnd) {
+  if (!audioOn || !text) { if (onEnd) onEnd(); return; }
+  if (window.speechSynthesis) window.speechSynthesis.cancel();
+  const parts = text.match(/[^。！？\n]+[。！？]?/g) || [text];
+  let i = 0;
+  const speakNext = () => {
+    if (hiddenChapterSkipRequested || !hiddenActive || i >= parts.length) {
+      if (onEnd) onEnd();
+      return;
+    }
+    const part = parts[i++].trim();
+    if (!part) { speakNext(); return; }
+    const u = new SpeechSynthesisUtterance(part);
+    u.lang = 'zh-CN';
+    u.rate = 0.88;
+    u.onend = speakNext;
+    u.onerror = speakNext;
+    window.speechSynthesis.speak(u);
+  };
+  speakNext();
+}
+
+function typewriterHidden(el, text, charMs, onDone) {
+  el.textContent = '';
+  let i = 0;
+  const cursor = document.createElement('span');
+  cursor.className = 'intro-cursor';
+  el.appendChild(cursor);
+  const tick = () => {
+    if (hiddenChapterSkipRequested || !hiddenActive) {
+      cursor.remove();
+      return;
+    }
+    if (i >= text.length) {
+      cursor.remove();
+      if (onDone) onDone();
+      return;
+    }
+    el.insertBefore(document.createTextNode(text[i]), cursor);
+    i++;
+    hiddenTypeTimer = setTimeout(tick, charMs);
+  };
+  hiddenTypeTimer = setTimeout(tick, charMs);
+}
+
+function finishHidden() {
+  if (!hiddenActive || hiddenChapterSkipRequested) return;
+  hiddenActive = false;
+  stopHidden();
+  markHiddenSeen();
+  document.getElementById('hiddenOverlay').classList.remove('show');
+  document.body.classList.remove('hidden-active');
+  document.getElementById('hiddenText').textContent = HIDDEN_TEXT;
+  document.getElementById('miniDialogue').textContent = '隐藏篇章《老交通员口述史》已聆听完毕。';
+  setTimeout(returnToCheckin, 1200);
+}
+
+function playHiddenChapter() {
+  if (!hasBadge('初心铭记者')) {
+    returnToCheckin();
+    return;
+  }
+  hiddenChapterSkipRequested = false;
+  hiddenActive = true;
+  stopSpeech();
+  hideSpeechBubble();
+  hideChoiceModal();
+  document.getElementById('resultPopup').classList.remove('show');
+  const badgeEl = document.getElementById('badgeRevealOverlay');
+  if (badgeEl) {
+    badgeEl.classList.remove('show', 'animate');
+    badgeEl.classList.add('hide');
+  }
+
+  const overlay = document.getElementById('hiddenOverlay');
+  const textEl = document.getElementById('hiddenText');
+  const hint = document.getElementById('hiddenHint');
+  textEl.textContent = '';
+  hint.textContent = '深度阅读中…';
+  overlay.classList.add('show');
+  document.body.classList.add('hidden-active');
+
+  let twDone = false;
+  let speechDone = false;
+  const maybeFinish = () => {
+    if (hiddenChapterSkipRequested || !hiddenActive) return;
+    if (twDone && speechDone) {
+      hint.textContent = '篇章结束';
+      setTimeout(finishHidden, 1000);
+    }
+  };
+
+  typewriterHidden(textEl, HIDDEN_TEXT, 22, () => { twDone = true; maybeFinish(); });
+  speakLongText(HIDDEN_TEXT, () => { speechDone = true; maybeFinish(); });
+}
+
+function openHiddenChapterFromResult() {
+  pendingHiddenChapter = false;
+  clearTimeout(autoTimer);
+  document.getElementById('resultPopup').classList.remove('show');
+  playHiddenChapter();
+}
+
+window.skipHiddenReading = function () {
+  if (!hiddenActive) return;
+  // 立刻停声，马上返回打卡界面
+  hiddenChapterSkipRequested = true;
+  hiddenActive = false;
+  stopHidden();
+  markHiddenSeen();
+  document.getElementById('hiddenOverlay').classList.remove('show');
+  document.body.classList.remove('hidden-active');
+  document.getElementById('hiddenText').textContent = '';
+  returnToCheckin();
+};
+
+function stopIntro() {
+  if (introTypeTimer) {
+    clearInterval(introTypeTimer);
+    introTypeTimer = null;
+  }
+  if (window.speechSynthesis) window.speechSynthesis.cancel();
+  stopNarrationAudio();
+}
+
+function finishIntro() {
+  if (introFinished) return;
+  introFinished = true;
+  introActive = false;
+  stopIntro();
+  document.getElementById('introOverlay').classList.remove('show');
+  document.getElementById('introSkipBtn').classList.remove('show');
+  document.body.classList.remove('intro-active');
+  const el = document.getElementById('introText');
+  el.textContent = INTRO_TEXT;
+  if (introResolve) {
+    const r = introResolve;
+    introResolve = null;
+    r();
+  }
+}
+
+function playIntro() {
+  return new Promise((resolve) => {
+    introFinished = false;
+    introActive = true;
+    introResolve = resolve;
+    const overlay = document.getElementById('introOverlay');
+    const textEl = document.getElementById('introText');
+    const skipBtn = document.getElementById('introSkipBtn');
+    textEl.textContent = '';
+    overlay.classList.add('show');
+    skipBtn.classList.add('show');
+    document.body.classList.add('intro-active');
+
+    let i = 0;
+    introTypeTimer = setInterval(() => {
+      if (!introActive || i >= INTRO_TEXT.length) {
+        clearInterval(introTypeTimer);
+        introTypeTimer = null;
+        return;
+      }
+      textEl.textContent += INTRO_TEXT[i++];
+    }, 55);
+
+    if (!audioOn) {
+      setTimeout(finishIntro, Math.max(3000, INTRO_TEXT.length * 55 + 800));
+      return;
+    }
+
+    playDocAudio('intro', INTRO_TEXT, () => {
+      if (introActive) setTimeout(finishIntro, 600);
+    });
+  });
+}
+
+window.skipIntroReading = function () {
+  if (!introActive) return;
+  stopIntro();
+  finishIntro();
+};
+
+function speakText(text, onEnd, useNarrationBar = true) {
+  const gen = ++speechGen;
+  if (!audioOn || !text) {
+    if (onEnd) onEnd();
+    return;
+  }
+  if (window.speechSynthesis) window.speechSynthesis.cancel();
+  stopNarrationAudio();
+  if (useNarrationBar) {
+    const bar = document.getElementById('narrationBar');
+    bar.textContent = text;
+    bar.classList.add('show');
+  }
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = 'zh-CN';
+  u.rate = 0.95;
+  const finish = () => {
+    if (gen !== speechGen) return;
+    if (useNarrationBar) document.getElementById('narrationBar').classList.remove('show');
+    if (onEnd) onEnd();
+  };
+  u.onend = finish;
+  u.onerror = finish;
+  window.speechSynthesis.speak(u);
+}
+
+function speakNarration(text, onEnd) {
+  const bar = document.getElementById('narrationBar');
+  bar.textContent = text;
+  bar.classList.add('show');
+  hideSpeechBubble();
+  clearDialogueBubbleTimer();
+  const s = getScene();
+  playDocAudio('scene' + currentScene, text, () => {
+    bar.classList.remove('show');
+    if (onEnd) onEnd();
+  });
+  if (s.dialogue && s.dialogueInAudio) {
+    scheduleInAudioDialogueBubble(s.dialogue, s.dialogueAt);
+  }
+}
+
+function speakCharacter(name, text, onEnd) {
+  document.getElementById('miniDialogue').textContent = name + '：「' + text + '」';
+  if (currentScene === 2 && name === '老人') {
+    showSpeechBubble('elder', name, text);
+    applyCamera(SCENES[2].dialogueCamera || getScene().camera);
+    speakText(name + '说：' + text, onEnd, false);
+    return;
+  }
+  hideSpeechBubble();
+  speakText(name + '说：' + text, onEnd, true);
+}
+
+function hideChoiceModal() {
+  const modal = document.getElementById('choiceModal');
+  modal.classList.remove('show');
+  document.getElementById('choiceBtns').innerHTML = '';
+}
+
+function showChoices() {
+  if (choiceHandled) return;
+  hideSpeechBubble();
+  document.getElementById('resultPopup').classList.remove('show');
+  const s = getScene();
+  document.getElementById('choiceTitle').textContent = s.title;
+  document.getElementById('choicePrompt').textContent = s.prompt;
+  const box = document.getElementById('choiceBtns');
+  box.innerHTML = '';
+  s.choices.forEach((c) => {
+    const btn = document.createElement('button');
+    btn.className = 'choice-modal-btn';
+    btn.type = 'button';
+    btn.innerHTML = '<span class="opt">' + c.label + '.</span>' + c.text;
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (choiceHandled) return;
+      handleChoice(c);
+    }, { once: true });
+    box.appendChild(btn);
+  });
+  document.getElementById('choiceModal').classList.add('show');
+}
+
+function playOpening() {
+  const gen = openingGen;
+  const sceneAtStart = currentScene;
+  hideChoiceModal();
+  document.getElementById('resultPopup').classList.remove('show');
+  choiceHandled = false;
+  const s = getScene();
+  document.getElementById('miniDialogue').textContent = '…';
+  stopSpeech();
+
+  speakNarration(s.narration, () => {
+    if (gen !== openingGen || currentScene !== sceneAtStart || choiceHandled) return;
+    if (s.dialogue && !s.dialogueInAudio) {
+      speakCharacter(s.dialogue.name, s.dialogue.text, () => {
+        if (gen !== openingGen || currentScene !== sceneAtStart || choiceHandled) return;
+        showChoices();
+      });
+    } else {
+      if (s.dialogue && s.dialogueInAudio) {
+        const key = s.dialogue.speaker || 'elder';
+        showSpeechBubble(key, s.dialogue.name, s.dialogue.text);
+        document.getElementById('miniDialogue').textContent = s.dialogue.name + '：「' + s.dialogue.text + '」';
+        if (key === 'elder') applyCamera(SCENES[2].dialogueCamera || getScene().camera);
+      }
+      showChoices();
+    }
+  });
+}
+
+function scheduleAutoAdvance(delayMs = 2200) {
+  clearTimeout(autoTimer);
+  const sceneAtSchedule = currentScene;
+  autoTimer = setTimeout(() => {
+    const popup = document.getElementById('resultPopup');
+    if (currentScene !== sceneAtSchedule) return;
+    if (!popup.classList.contains('show')) return;
+    closeResult();
+  }, delayMs);
+}
+
+function handleChoice(c) {
+  if (choiceHandled) return;
+  choiceHandled = true;
+  hideChoiceModal();
+  hideSpeechBubble();
+  clearDialogueBubbleTimer();
+  stopSpeech();
+  clearTimeout(autoTimer);
+  pendingRetry = !c.success;
+
+  const isFinalBadge = c.success && currentScene === 3 && c.badge === '初心铭记者';
+  const p = document.getElementById('resultPopup');
+  p.className = 'result-popup ' + (c.success ? 'success ' : '') + 'show' + (isFinalBadge ? ' badge-together' : '');
+  document.getElementById('resultIcon').textContent = isFinalBadge ? '🏅' : (c.success ? '✅' : '❌');
+  document.getElementById('resultTitle').textContent = isFinalBadge ? '获得徽章' : (c.success ? '回答正确' : '回答错误');
+  document.getElementById('resultDesc').textContent = c.result;
+  if (isFinalBadge) awardBadge(c.badge);
+
+  if (c.success && currentScene < 3) {
+    pendingNext = currentScene + 1;
+    document.querySelector('.result-close').textContent = '继续 → 场景' + pendingNext;
+    if (c.speech) {
+      setTimeout(() => {
+        hideSpeechBubble();
+        speakCharacter('你', c.speech.replace(/^"|"$/g, ''), () => scheduleAutoAdvance(1500));
+      }, 300);
+    } else {
+      scheduleAutoAdvance(2200);
+    }
+  } else if (isFinalBadge) {
+    pendingNext = null;
+    pendingHiddenChapter = true;
+    document.querySelector('.result-close').textContent = '继续 → 隐藏篇章';
+    if (typeof playBadgeReveal === 'function') playBadgeReveal('初心铭记者');
+    autoTimer = setTimeout(openHiddenChapterFromResult, 3200);
+  } else if (c.success && currentScene === 3) {
+    pendingNext = null;
+    pendingHiddenChapter = true;
+    document.querySelector('.result-close').textContent = '继续 → 隐藏篇章';
+    scheduleAutoAdvance(2200);
+  } else {
+    pendingNext = null;
+    document.querySelector('.result-close').textContent = '重试';
+  }
+}
+
+function closeResult() {
+  clearTimeout(autoTimer);
+  document.getElementById('resultPopup').classList.remove('show');
+  if (pendingRetry) {
+    pendingRetry = false;
+    choiceHandled = false;
+    showChoices();
+    return;
+  }
+  if (pendingHiddenChapter && hasBadge('初心铭记者') && !hiddenActive) {
+    pendingHiddenChapter = false;
+    playHiddenChapter();
+    return;
+  }
+  if (pendingNext) {
+    const next = pendingNext;
+    pendingNext = null;
+    currentScene = next;
+    buildScene(next, playOpening);
+    return;
+  }
+  if (hasBadge('初心铭记者')) setTimeout(returnToCheckin, 800);
+}
+
+function goNext() { closeResult(); }
+
+window.toggleAudio = function () {
+  audioOn = !audioOn;
+  document.getElementById('audioBtn').textContent = audioOn ? '🔊' : '🔇';
+  if (!audioOn) stopSpeech();
+};
+
+window.closeResult = closeResult;
+window.switchScene = switchScene;
+
+function initThree() {
+  const container = document.getElementById('canvas-container');
+  renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.shadowMap.enabled = true;
+  container.appendChild(renderer.domElement);
+
+  scene3d = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 500);
+  gltfLoader = new GLTFLoader();
+
+  window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+}
+
+function animate() {
+  requestAnimationFrame(animate);
+  animTick += 0.016;
+  if (sceneReady) {
+    const s = getScene();
+    if (s.camera) {
+      const cam = (currentScene === 2 && dialogueCameraActive && s.dialogueCamera)
+        ? s.dialogueCamera
+        : s.camera;
+      camera.position.set(cam.pos[0], cam.pos[1], cam.pos[2]);
+      camera.lookAt(cam.look[0], cam.look[1], cam.look[2]);
+    }
+  }
+  updateBubblePosition();
+  renderer.render(scene3d, camera);
+}
+
+async function boot() {
+  if (location.protocol === 'file:') {
+    showProtocolWarning(true);
+    return;
+  }
+  showProtocolWarning(false);
+  const params = new URLSearchParams(location.search);
+  const sceneParam = parseInt(params.get('scene'), 10);
+  if (sceneParam >= 1 && sceneParam <= 3) currentScene = sceneParam;
+
+  initThree();
+  animate();
+  updateUI();
+
+  const showIntroFirst = currentScene === 1 && params.get('skipIntro') !== '1';
+  if (showIntroFirst) await playIntro();
+
+  await buildScene(currentScene, playOpening);
+}
+
+boot();
+</script>
+</body>
+</html>
