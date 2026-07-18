@@ -10,6 +10,8 @@
     #canvas-container { position: fixed; inset: 0; z-index: 0; }
     .top-tag { position: fixed; top: 14px; left: 14px; z-index: 10; background: rgba(196,30,58,0.8); padding: 5px 12px; border-radius: 14px; font-size: 11px; }
     .audio-btn { position: fixed; top: 14px; right: 14px; z-index: 10; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.3); color: #fff; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; font-size: 16px; }
+    .back-link { position: fixed; top: 14px; right: 58px; z-index: 10; color: #ddd; font-size: 11px; text-decoration: none; background: rgba(255,255,255,0.1); padding: 6px 12px; border-radius: 14px; cursor: pointer; border: none; }
+    .back-link:hover { color: #fff; background: rgba(255,255,255,0.18); }
     .mini-panel { position: fixed; bottom: 16px; right: 16px; z-index: 20; width: 280px; max-height: 38vh; background: rgba(10,8,6,0.82); border: 1px solid rgba(255,255,255,0.15); border-radius: 12px; padding: 12px 14px; overflow-y: auto; backdrop-filter: blur(10px); }
     .mini-year { font-size: 10px; color: #C41E3A; margin-bottom: 4px; }
     .mini-title { font-size: 13px; font-weight: bold; color: #FFD700; margin-bottom: 6px; }
@@ -185,6 +187,7 @@
   <button id="nav3" onclick="switchScene(3)">场景三·护送</button>
 </nav>
 <button class="audio-btn" id="audioBtn" onclick="toggleAudio()">🔊</button>
+<button type="button" class="back-link" onclick="exitScene()">返回地图</button>
 
 <div class="mini-panel">
   <div class="mini-year" id="miniYear">1943年秋</div>
@@ -253,15 +256,13 @@ const MEMOIR_TEXT =
 
 const BADGE_KEY = 'jiankou_badges_v1';
 
+function exitScene() {
+  window.location.href = new URL('../index.html', window.location.href).href;
+}
+
 function returnToCheckin() {
   const params = new URLSearchParams(window.location.search);
   const spotId = params.get('spot') || '';
-  try {
-    if (window.parent && window.parent !== window) {
-      window.parent.postMessage({ type: 'jiankou-scene-complete', spotId: spotId }, '*');
-      return;
-    }
-  } catch (e) {}
   try { sessionStorage.setItem('jiankouCompletedSpot', spotId); } catch (e) {}
   window.location.href = new URL('../index.html', window.location.href).href;
 }
@@ -472,10 +473,13 @@ function playDocAudio(key, textFallback, onEnd, opts = {}) {
     audio.currentTime = 0;
   }
   activeNarrationAudio = audio;
+  let playbackStarted = false;
+  const onPlaying = () => { playbackStarted = true; };
 
   const cleanup = () => {
     audio.removeEventListener('ended', onDone);
     audio.removeEventListener('error', onFail);
+    audio.removeEventListener('playing', onPlaying);
   };
   const onDone = () => {
     cleanup();
@@ -485,11 +489,16 @@ function playDocAudio(key, textFallback, onEnd, opts = {}) {
   const onFail = () => {
     cleanup();
     if (activeNarrationAudio === audio) activeNarrationAudio = null;
-    console.warn('⚠️ MP3 未找到或无法播放，改用浏览器朗读:', src);
+    if (playbackStarted) {
+      if (onEnd) onEnd();
+      return;
+    }
+    console.warn('⚠️ MP3 未找到或无法播放，改用男声旁白朗读:', src);
     if (opts.long) speakLongText(textFallback, onEnd);
     else tts(textFallback, 'narrator', onEnd);
   };
 
+  audio.addEventListener('playing', onPlaying, { once: true });
   audio.addEventListener('ended', onDone);
   audio.addEventListener('error', onFail);
   audio.play().catch(onFail);
@@ -559,8 +568,10 @@ function skipHiddenChapter() {
   window.speechSynthesis.cancel();
   const overlay = document.getElementById('hiddenChapterOverlay');
   if (overlay) overlay.classList.remove('show');
-  returnToCheckin();
+  exitScene();
 }
+
+window.exitScene = exitScene;
 
 function finishHiddenChapter() {
   if (hiddenChapterSkipRequested) return;
@@ -632,13 +643,25 @@ const _proj = new THREE.Vector3();
 // ═══ 语音：旁白 vs 人物分轨 ═══
 const VOICES = { narrator: null, male: null, female: null };
 
+function pickMaleVoice(vs) {
+  return vs.find(v => /kangkang|yunxi|yunjian|yunfeng|liang|男|male/i.test(v.name))
+    || vs.find(v => !/huihui|xiaoxiao|yaoyao|xiao|晓|女|female/i.test(v.name))
+    || vs[0];
+}
+
+function pickFemaleVoice(vs) {
+  const male = pickMaleVoice(vs);
+  return vs.find(v => /huihui|xiaoxiao|yaoyao|晓|女|female/i.test(v.name))
+    || vs.find(v => v !== male)
+    || vs[0];
+}
+
 function initVoices() {
   const vs = window.speechSynthesis.getVoices().filter(v => v.lang.includes('zh'));
   if (!vs.length) return;
-  VOICES.narrator = vs.find(v => /kangkang|yunjian|male|男/i.test(v.name)) || vs[0];
-  VOICES.male     = vs.find(v => /kangkang|yunjian|male|男/i.test(v.name)) || vs[0];
-  VOICES.female   = vs.find(v => /huihui|xiaoxiao|yaoyao|female|女/i.test(v.name)) || vs[1] || vs[0];
-  if (VOICES.male === VOICES.narrator && vs.length > 1) VOICES.male = vs[1];
+  VOICES.narrator = pickMaleVoice(vs);
+  VOICES.male     = pickMaleVoice(vs);
+  VOICES.female   = pickFemaleVoice(vs);
   voiceReady = true;
 }
 window.speechSynthesis.onvoiceschanged = initVoices;
@@ -1972,6 +1995,7 @@ window.addEventListener('load', () => {
     }, 500);
   }, 1200);
 });
+window.exitScene = exitScene;
 </script>
 </body>
 </html>
