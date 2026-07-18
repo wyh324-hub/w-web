@@ -648,6 +648,7 @@
 </div>
 
 <div class="top-tag" id="topTag">⛰️ 英雄山 · 最后的抉择</div>
+<button type="button" class="back-link" onclick="exitScene()">返回地图</button>
 <button class="audio-btn" id="audioBtn" onclick="toggleAudio()">🔊</button>
 
 <nav class="scene-nav" id="sceneNav">
@@ -697,15 +698,13 @@ const HIDDEN_SEEN_KEY = 'yingxiong_hidden_seen_v1';
 const FINALE_SEEN_KEY = 'yingxiong_finale1_seen_v1';
 const GROUND_Y = 0;
 
+function exitScene() {
+  window.location.href = new URL('../index.html', window.location.href).href;
+}
+
 function returnToCheckin() {
   const params = new URLSearchParams(window.location.search);
   const spotId = params.get('spot') || '';
-  try {
-    if (window.parent && window.parent !== window) {
-      window.parent.postMessage({ type: 'jiankou-scene-complete', spotId: spotId }, '*');
-      return;
-    }
-  } catch (e) {}
   try { sessionStorage.setItem('jiankouCompletedSpot', spotId); } catch (e) {}
   window.location.href = new URL('../index.html', window.location.href).href;
 }
@@ -731,6 +730,17 @@ const NARRATION_MP3 = {
 };
 let activeNarrationAudio = null;
 const narrationMp3Cache = {};
+let narratorVoice = null;
+
+function initNarratorVoice() {
+  const vs = window.speechSynthesis.getVoices().filter(v => v.lang.includes('zh'));
+  if (!vs.length) return;
+  narratorVoice = vs.find(v => /kangkang|yunxi|yunjian|yunfeng|liang|男|male/i.test(v.name))
+    || vs.find(v => !/huihui|xiaoxiao|yaoyao|xiao|晓|女|female/i.test(v.name))
+    || vs[0];
+}
+window.speechSynthesis.onvoiceschanged = initNarratorVoice;
+initNarratorVoice();
 
 function stopNarrationAudio() {
   if (activeNarrationAudio) {
@@ -759,9 +769,12 @@ function playDocAudio(key, textFallback, onEnd) {
     audio.currentTime = 0;
   }
   activeNarrationAudio = audio;
+  let playbackStarted = false;
+  const onPlaying = () => { playbackStarted = true; };
   const cleanup = () => {
     audio.removeEventListener('ended', onDone);
     audio.removeEventListener('error', onFail);
+    audio.removeEventListener('playing', onPlaying);
   };
   const onDone = () => {
     cleanup();
@@ -771,8 +784,13 @@ function playDocAudio(key, textFallback, onEnd) {
   const onFail = () => {
     cleanup();
     if (activeNarrationAudio === audio) activeNarrationAudio = null;
+    if (playbackStarted) {
+      if (onEnd) onEnd();
+      return;
+    }
     speakTextFallback(textFallback, onEnd);
   };
+  audio.addEventListener('playing', onPlaying, { once: true });
   audio.addEventListener('ended', onDone);
   audio.addEventListener('error', onFail);
   audio.play().catch(onFail);
@@ -784,6 +802,8 @@ function speakTextFallback(text, onEnd) {
   const u = new SpeechSynthesisUtterance(text);
   u.lang = 'zh-CN';
   u.rate = 0.95;
+  u.pitch = 0.85;
+  if (narratorVoice) u.voice = narratorVoice;
   u.onend = () => { if (onEnd) onEnd(); };
   u.onerror = () => { if (onEnd) onEnd(); };
   window.speechSynthesis.speak(u);
@@ -1570,6 +1590,8 @@ function speakLongText(text, onEnd) {
     const u = new SpeechSynthesisUtterance(part);
     u.lang = 'zh-CN';
     u.rate = 0.88;
+    u.pitch = 0.85;
+    if (narratorVoice) u.voice = narratorVoice;
     u.onend = speakNext;
     u.onerror = speakNext;
     window.speechSynthesis.speak(u);
@@ -1619,7 +1641,7 @@ function finishHidden() {
 
 function playHiddenChapter() {
   if (!hasBadge('英雄致敬人')) {
-    returnToCheckin();
+    exitScene();
     return;
   }
   hiddenChapterSkipRequested = false;
@@ -1680,7 +1702,7 @@ window.skipFinaleReading = function () {
   if (finaleSkip) finaleSkip.classList.remove('show');
   document.getElementById('finaleOverlay').classList.remove('show', 'finale-historic', 'finale-letter', 'finale-epilogue');
   document.body.classList.remove('finale-active');
-  returnToCheckin();
+  exitScene();
 };
 
 function stopIntro() {
@@ -1771,6 +1793,8 @@ function speakText(text, onEnd, useBar = true) {
   const u = new SpeechSynthesisUtterance(text);
   u.lang = 'zh-CN';
   u.rate = 0.95;
+  u.pitch = 0.85;
+  if (narratorVoice) u.voice = narratorVoice;
   const done = () => {
     if (gen !== speechGen) return;
     if (useBar) document.getElementById('narrationBar').classList.remove('show');
@@ -1983,6 +2007,7 @@ async function boot() {
 }
 
 boot();
+window.exitScene = exitScene;
 </script>
 </body>
 </html>

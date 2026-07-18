@@ -246,6 +246,7 @@
             height: 100%;
             display: block;
             border-radius: 2vw;
+            cursor: pointer;
         }
 
         /* ===== 卡号绑定（地图顶部） ===== */
@@ -388,6 +389,40 @@
             border-color: #cc3300;
         }
         .point-label.visited .label-name { color: #1f0a00; }
+
+        /* ===== 地图点位链接（点击在新标签页打开独立场景页） ===== */
+        .point-link-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 6;
+            pointer-events: none;
+        }
+        .point-link {
+            position: absolute;
+            transform: translate(-50%, -50%);
+            border-radius: 50%;
+            pointer-events: auto;
+            cursor: pointer;
+            text-decoration: none;
+            color: transparent;
+            background: transparent;
+            border: none;
+            padding: 0;
+        }
+        .point-link:focus-visible {
+            outline: 2px solid #e8c070;
+            outline-offset: 2px;
+        }
+        a.stamp-item {
+            text-decoration: none;
+            color: inherit;
+            display: flex;
+            align-items: center;
+            gap: inherit;
+        }
 
         /* ===== 底部操作（已改底部导航） ===== */
         .hint-text {
@@ -784,28 +819,6 @@
             background: rgba(196, 30, 58, 0.25);
         }
 
-        /* ===== 涧沟元宇宙场景（iframe） ===== */
-        .scene-overlay {
-            position: fixed;
-            inset: 0;
-            z-index: 100;
-            background: #000;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.45s ease;
-        }
-        .scene-overlay.show {
-            opacity: 1;
-            pointer-events: auto;
-        }
-        .scene-overlay iframe {
-            width: 100%;
-            height: 100%;
-            border: none;
-            display: block;
-            background: #1a2030;
-        }
-
         @media (max-width: 480px) {
             .point-label { min-width: 12vw; }
             .card-bind-bar input { max-width: none; width: 100%; }
@@ -879,11 +892,12 @@
                 <input type="text" id="cardNumberInput" maxlength="32" placeholder="绑定身份卡号" autocomplete="off" />
                 <button type="button" class="card-bind-btn" id="cardBindBtn">绑定</button>
                 <button type="button" class="card-bind-btn secondary" id="cardUnbindBtn" hidden>解绑</button>
-                <div class="card-bound-info unbound" id="cardBoundInfo">卡号为身份标识 · 现场 NFC 刷卡后将自动进入对应场景</div>
+                <div class="card-bound-info unbound" id="cardBoundInfo">卡号为身份标识 · 绑定后点击链接在新页面打开场景</div>
             </div>
             <div class="route-map">
                 <div class="route-svg-wrapper">
                     <canvas id="routeCanvas"></canvas>
+                    <div class="point-link-overlay" id="pointLinkOverlay"></div>
                     <div class="label-overlay" id="labelOverlay"></div>
                 </div>
             </div>
@@ -893,7 +907,7 @@
                     <span class="count"><span id="progressCount">0</span> / <span id="progressTotal">5</span></span>
                 </div>
                 <div class="checkin-progress-track" id="progressTrack"></div>
-                <div class="checkin-progress-hint" id="progressHint">点位默认锁定 · 等待现场 NFC 刷卡自动解锁</div>
+                <div class="checkin-progress-hint" id="progressHint">绑定身份卡号后 · 点击点位链接在新页面打开场景</div>
             </div>
         </div>
 
@@ -969,11 +983,6 @@
     </div>
 </div>
 
-<!-- 涧沟元宇宙场景 -->
-<div class="scene-overlay" id="sceneOverlay">
-    <iframe id="sceneFrame" title="涧沟元宇宙场景" allow="autoplay; fullscreen"></iframe>
-</div>
-
 <script>
     // ================================================================
     // 第一部分：打卡页面逻辑（路线图 + 卡号绑定 + 进度条）
@@ -996,6 +1005,7 @@
     const canvas = document.getElementById('routeCanvas');
     const ctx = canvas.getContext('2d');
     const labelOverlay = document.getElementById('labelOverlay');
+    const pointLinkOverlay = document.getElementById('pointLinkOverlay');
     const stampList = document.getElementById('stampList');
     const cardNumberInput = document.getElementById('cardNumberInput');
     const cardBindBtn = document.getElementById('cardBindBtn');
@@ -1058,11 +1068,11 @@
         ).join('');
         const next = checkpoints.find(p => !p.visited);
         if (!boundCardId) {
-            progressHint.textContent = '请先绑定身份卡号 · 点位保持锁定';
+            progressHint.textContent = '请先绑定身份卡号 · 绑定后点击链接在新页面打开场景';
         } else if (!next) {
             progressHint.textContent = '本卡已集满 5 枚徽章';
         } else {
-            progressHint.textContent = '已打卡 ' + count + ' / ' + TOTAL_SPOTS + ' · 等待现场 NFC 刷卡';
+            progressHint.textContent = '已打卡 ' + count + ' / ' + TOTAL_SPOTS + ' · 点击链接在新页面打开场景';
         }
     }
 
@@ -1079,7 +1089,7 @@
             cardBindBtn.hidden = false;
             cardUnbindBtn.hidden = true;
             cardBoundInfo.classList.add('unbound');
-            cardBoundInfo.textContent = '卡号为身份标识 · 现场 NFC 刷卡后将自动进入对应场景';
+            cardBoundInfo.textContent = '卡号为身份标识 · 绑定后点击链接在新页面打开场景';
         }
         updateProgressBar();
     }
@@ -1135,20 +1145,23 @@
     function renderStampList() {
         stampList.innerHTML = checkpoints.map((p, i) => {
             const got = p.visited;
-            return `<div class="stamp-item${got ? ' got' : ''}" data-spot-id="${p.id}" style="cursor:${got ? 'pointer' : 'default'}">
+            const href = buildSpotUrl(p);
+            return `<a class="stamp-item${got ? ' got' : ''}" href="${href}" target="_blank" rel="noopener noreferrer" data-spot-id="${p.id}">
                 <div class="stamp-check" aria-checked="${got}" role="checkbox">${got ? '✓' : ''}</div>
                 <div class="stamp-badge">${symbols[i]}</div>
                 <div class="stamp-info">
                     <div class="stamp-name">${p.name}</div>
-                    <div class="stamp-status">${got ? '已集章 · 点击进入场景' : '场景锁定 · 等待 NFC 刷卡'}</div>
+                    <div class="stamp-status">${got ? '已集章 · 点击链接打开场景' : '点击链接在新页面打开场景'}</div>
                 </div>
-            </div>`;
+            </a>`;
         }).join('');
-        stampList.querySelectorAll('.stamp-item.got').forEach(el => {
-            el.addEventListener('click', function() {
+        stampList.querySelectorAll('a.stamp-item').forEach(el => {
+            el.addEventListener('click', function(e) {
                 const id = Number(this.dataset.spotId);
                 const spot = checkpoints.find(p => p.id === id);
-                if (spot && spot.visited) showScene(spot);
+                if (!spot) return;
+                if (!handleSpotLinkClick(e, spot)) return;
+                this.href = buildSpotUrl(spot);
             });
         });
     }
@@ -1310,17 +1323,60 @@
 
         // 每个圆点正上方：地点名称小框（与画布同一坐标系，不会堆到左下角）
         labelOverlay.innerHTML = '';
+        pointLinkOverlay.innerHTML = '';
         const labelGap = radius + Math.max(10, H * 0.016);
-        checkpoints.forEach((p) => {
+        const linkSize = Math.max(radius * 2.4, 28);
+        checkpoints.forEach((p, index) => {
+            const x = (p.x / 100) * W;
+            const y = (p.y / 100) * H;
+
+            const link = document.createElement('a');
+            link.className = 'point-link';
+            link.href = buildSpotUrl(p);
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+            link.title = '在新页面打开：' + p.name;
+            link.setAttribute('aria-label', '在新页面打开：' + p.name);
+            link.style.left = x + 'px';
+            link.style.top = y + 'px';
+            link.style.width = linkSize + 'px';
+            link.style.height = linkSize + 'px';
+            link.addEventListener('click', function(e) {
+                handleSpotLinkClick(e, p);
+            });
+            pointLinkOverlay.appendChild(link);
+
             const label = document.createElement('div');
             label.className = 'point-label' + (p.visited ? ' visited' : '');
-            const x = (p.x / 100) * W;
-            const y = (p.y / 100) * H - labelGap;
             label.style.left = x + 'px';
-            label.style.top = y + 'px';
+            label.style.top = (y - labelGap) + 'px';
             label.innerHTML = `<span class="label-name">${p.name}</span>`;
             labelOverlay.appendChild(label);
         });
+    }
+
+    function buildSpotUrl(spot) {
+        if (!spot || !spot.scene) return '#';
+        const url = new URL(spot.scene, window.location.href);
+        url.searchParams.set('spot', String(spot.id));
+        url.searchParams.set('from', 'checkin');
+        if (boundCardId) url.searchParams.set('card', boundCardId);
+        return url.href;
+    }
+
+    function handleSpotLinkClick(e, spot) {
+        if (!spot) {
+            e.preventDefault();
+            return false;
+        }
+        if (!boundCardId) {
+            e.preventDefault();
+            alert('请先绑定身份卡号');
+            cardNumberInput.focus();
+            return false;
+        }
+        e.currentTarget.href = buildSpotUrl(spot);
+        return true;
     }
 
     let resizeTimer = null;
@@ -1333,14 +1389,9 @@
     window.addEventListener('orientationchange', () => setTimeout(drawRoute, 300));
 
     // ================================================================
-    // 身份卡号（前端）+ 后端 NFC 刷卡回调：点位锁定，刷卡后自动进入对应场景
-    // ①平西→w.html  ②苏静→sujing.html  ③古香道→guxiangdao.html
-    // ④初心→chuxin.html  ⑤英雄山→yingxiongshan.html
+    // 场景跳转：点击链接在新标签页打开五个独立场景网页
+    // ①w.html  ②sujing.html  ③guxiangdao.html  ④chuxin.html  ⑤yingxiongshan.html
     // ================================================================
-    const mainApp = document.getElementById('mainApp');
-    const sceneOverlay = document.getElementById('sceneOverlay');
-    const sceneFrame = document.getElementById('sceneFrame');
-    let activeSpotId = null;
 
     function markSpotDone(spotId) {
         const id = Number(spotId);
@@ -1361,78 +1412,10 @@
         }
     }
 
-    function showScene(spot) {
-        if (!spot || !spot.scene) return;
-        activeSpotId = spot.id;
-        const url = new URL(spot.scene, window.location.href);
-        url.searchParams.set('spot', String(spot.id));
-        url.searchParams.set('from', 'checkin');
-        if (boundCardId) url.searchParams.set('card', boundCardId);
-        if (window.location.protocol === 'file:') {
-            window.location.href = url.href;
-            return;
-        }
-        sceneFrame.src = url.href;
-        mainApp.classList.add('hidden');
-        sceneOverlay.classList.add('show');
-    }
-
-    function hideScene() {
-        mainApp.classList.remove('hidden');
-        sceneOverlay.classList.remove('show');
-        sceneFrame.src = 'about:blank';
-        activeSpotId = null;
-        setTimeout(drawRoute, 80);
-    }
-
-    /** 后端 NFC 刷卡成功后调用：自动打开对应点位场景 */
-    function handleNfcSwipe(spotId) {
-        if (!boundCardId) {
-            console.warn('[checkin] NFC 刷卡忽略：尚未绑定身份卡号');
-            return false;
-        }
-        const id = Number(spotId);
-        const spot = checkpoints.find(p => p.id === id);
-        if (!spot) {
-            console.warn('[checkin] NFC 刷卡忽略：未知点位', spotId);
-            return false;
-        }
-        showScene(spot);
-        return true;
-    }
-
-    // 供后端 / App / 读卡中间件调用
-    window.jiankouNfcSwipe = handleNfcSwipe;
     window.jiankouGetBoundCard = function () { return boundCardId || ''; };
     window.jiankouGetCheckpoints = function () {
         return checkpoints.map(p => ({ id: p.id, name: p.name, visited: !!p.visited }));
     };
-
-    window.addEventListener('message', function(e) {
-        if (!e.data) return;
-        if (e.data.type === 'jiankou-nfc-swipe') {
-            handleNfcSwipe(e.data.spotId);
-            return;
-        }
-        if (e.data.type === 'jiankou-scene-complete') {
-            markSpotDone(e.data.spotId || activeSpotId);
-            hideScene();
-        }
-    });
-
-    // 也支持 URL：?nfc=2 或 #nfc=2（便于联调）
-    (function consumeNfcQuery() {
-        try {
-            const params = new URLSearchParams(window.location.search);
-            const hash = (window.location.hash || '').replace(/^#/, '');
-            const hashParams = new URLSearchParams(hash.includes('=') ? hash : '');
-            const nfcSpot = params.get('nfc') || hashParams.get('nfc');
-            if (nfcSpot) {
-                history.replaceState(null, '', window.location.pathname + window.location.search.replace(/[?&]nfc=\d+/, '').replace(/^&/, '?') + window.location.hash.replace(/nfc=\d+&?/, ''));
-                setTimeout(() => handleNfcSwipe(nfcSpot), 400);
-            }
-        } catch (err) { /* ignore */ }
-    })();
 
     (function consumeCompletedSpot() {
         try {

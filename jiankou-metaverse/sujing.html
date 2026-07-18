@@ -124,6 +124,7 @@
 <body>
 
 <div id="canvas-container"></div>
+<button type="button" class="back-link" onclick="exitScene()">返回地图</button>
 <div class="top-tag" id="topTag">苏静洞 · 山洞里的电波</div>
 <button class="audio-btn" id="audioBtn" onclick="toggleAudio()" style="position:fixed;top:14px;right:118px;z-index:10;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.3);color:#fff;width:36px;height:36px;border-radius:50%;cursor:pointer;font-size:16px;">🔊</button>
 <nav class="scene-nav">
@@ -267,15 +268,13 @@ const SFX_MP3 = {
   morse:     'audio/sujing/morse.mp3',
 };
 
+function exitScene() {
+  window.location.href = new URL('../index.html', window.location.href).href;
+}
+
 function returnToCheckin() {
   const params = new URLSearchParams(window.location.search);
   const spotId = params.get('spot') || '';
-  try {
-    if (window.parent && window.parent !== window) {
-      window.parent.postMessage({ type: 'jiankou-scene-complete', spotId: spotId }, '*');
-      return;
-    }
-  } catch (e) {}
   try { sessionStorage.setItem('jiankouCompletedSpot', spotId); } catch (e) {}
   window.location.href = new URL('../index.html', window.location.href).href;
 }
@@ -311,12 +310,25 @@ let hiddenChapterSkipRequested = false;
 const gltfLoader = new THREE.GLTFLoader();
 const VOICES = { narrator: null, male: null, female: null };
 
+function pickMaleVoice(vs) {
+  return vs.find(v => /kangkang|yunxi|yunjian|yunfeng|liang|男|male/i.test(v.name))
+    || vs.find(v => !/huihui|xiaoxiao|yaoyao|xiao|晓|女|female/i.test(v.name))
+    || vs[0];
+}
+
+function pickFemaleVoice(vs) {
+  const male = pickMaleVoice(vs);
+  return vs.find(v => /huihui|xiaoxiao|yaoyao|晓|女|female/i.test(v.name))
+    || vs.find(v => v !== male)
+    || vs[0];
+}
+
 function initVoices() {
   const vs = speechSynthesis.getVoices().filter(v => v.lang.includes('zh'));
   if (!vs.length) return;
-  VOICES.narrator = vs.find(v => /huihui|xiaoxiao|晓/i.test(v.name)) || vs[0];
-  VOICES.female   = vs.find(v => /huihui|yaoyao|女/i.test(v.name)) || vs[0];
-  VOICES.male     = vs.find(v => /yunxi|kangkang|男/i.test(v.name)) || vs[0];
+  VOICES.narrator = pickMaleVoice(vs);
+  VOICES.male     = pickMaleVoice(vs);
+  VOICES.female   = pickFemaleVoice(vs);
 }
 speechSynthesis.onvoiceschanged = initVoices;
 initVoices();
@@ -426,9 +438,12 @@ function playDocAudio(key, textFallback, onEnd) {
     audio.currentTime = 0;
   }
   activeNarrationAudio = audio;
+  let playbackStarted = false;
+  const onPlaying = () => { playbackStarted = true; };
   const cleanup = () => {
     audio.removeEventListener('ended', onDone);
     audio.removeEventListener('error', onFail);
+    audio.removeEventListener('playing', onPlaying);
   };
   const onDone = () => {
     cleanup();
@@ -438,8 +453,13 @@ function playDocAudio(key, textFallback, onEnd) {
   const onFail = () => {
     cleanup();
     if (activeNarrationAudio === audio) activeNarrationAudio = null;
+    if (playbackStarted) {
+      if (onEnd) onEnd();
+      return;
+    }
     tts(textFallback, 'narrator', onEnd);
   };
+  audio.addEventListener('playing', onPlaying, { once: true });
   audio.addEventListener('ended', onDone);
   audio.addEventListener('error', onFail);
   audio.play().catch(onFail);
@@ -452,7 +472,8 @@ function tts(text, role, onEnd) {
   const u = new SpeechSynthesisUtterance(text);
   u.lang = 'zh-CN';
   u.voice = role === 'female' ? VOICES.female : role === 'male' ? VOICES.male : VOICES.narrator;
-  u.rate = 0.78; u.pitch = 0.95;
+  u.rate = role === 'narrator' ? 0.82 : 0.78;
+  u.pitch = role === 'female' ? 1.05 : 0.85;
   u.onend = () => { if (onEnd) onEnd(); };
   speechSynthesis.speak(u);
 }
@@ -676,7 +697,7 @@ function speakLongText(text, onEnd) {
     u.lang = 'zh-CN';
     u.voice = VOICES.narrator;
     u.rate = 0.76;
-    u.pitch = 0.95;
+    u.pitch = 0.85;
     u.onend = speakNext;
     u.onerror = speakNext;
     speechSynthesis.speak(u);
@@ -693,7 +714,7 @@ function skipHiddenChapter() {
   if (overlay) overlay.classList.remove('show');
   const text = document.getElementById('hiddenChapterText');
   if (text) text.textContent = '';
-  returnToCheckin();
+  exitScene();
 }
 
 function finishHiddenChapter() {
@@ -1406,6 +1427,7 @@ window.addEventListener('load', () => {
     buildScene(first, () => setTimeout(playOpening, 500));
   }
 });
+window.exitScene = exitScene;
 </script>
 </body>
 </html>

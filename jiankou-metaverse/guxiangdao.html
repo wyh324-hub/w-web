@@ -134,6 +134,7 @@
 </div>
 
 <div class="top-tag" id="topTag">🛤️ 古香道 · 穿越封锁线</div>
+<button type="button" class="back-link" onclick="exitScene()">返回地图</button>
 <button class="audio-btn" id="audioBtn" onclick="toggleAudio()">🔊</button>
 
 <nav class="scene-nav" id="sceneNav">
@@ -207,15 +208,13 @@ const MODEL_FILES = {
   bethune: 'models/guxiangdao/beixiye.glb',
 };
 
+function exitScene() {
+  window.location.href = new URL('../index.html', window.location.href).href;
+}
+
 function returnToCheckin() {
   const params = new URLSearchParams(window.location.search);
   const spotId = params.get('spot') || '';
-  try {
-    if (window.parent && window.parent !== window) {
-      window.parent.postMessage({ type: 'jiankou-scene-complete', spotId: spotId }, '*');
-      return;
-    }
-  } catch (e) {}
   try { sessionStorage.setItem('jiankouCompletedSpot', spotId); } catch (e) {}
   window.location.href = new URL('../index.html', window.location.href).href;
 }
@@ -236,6 +235,17 @@ let hiddenTypeToken = 0;
 let hiddenTypeTimer = null;
 let activeNarrationAudio = null;
 const narrationMp3Cache = {};
+let narratorVoice = null;
+
+function initNarratorVoice() {
+  const vs = speechSynthesis.getVoices().filter(v => v.lang.includes('zh'));
+  if (!vs.length) return;
+  narratorVoice = vs.find(v => /kangkang|yunxi|yunjian|yunfeng|liang|男|male/i.test(v.name))
+    || vs.find(v => !/huihui|xiaoxiao|yaoyao|xiao|晓|女|female/i.test(v.name))
+    || vs[0];
+}
+speechSynthesis.onvoiceschanged = initNarratorVoice;
+initNarratorVoice();
 let dialogueBubbleTimer = null;
 let dialogueBubblePollId = null;
 let actors = {};
@@ -367,9 +377,12 @@ function playDocAudio(key, textFallback, onEnd) {
     audio.currentTime = 0;
   }
   activeNarrationAudio = audio;
+  let playbackStarted = false;
+  const onPlaying = () => { playbackStarted = true; };
   const cleanup = () => {
     audio.removeEventListener('ended', onDone);
     audio.removeEventListener('error', onFail);
+    audio.removeEventListener('playing', onPlaying);
   };
   const onDone = () => {
     cleanup();
@@ -379,8 +392,13 @@ function playDocAudio(key, textFallback, onEnd) {
   const onFail = () => {
     cleanup();
     if (activeNarrationAudio === audio) activeNarrationAudio = null;
+    if (playbackStarted) {
+      if (onEnd) onEnd();
+      return;
+    }
     tts(textFallback, onEnd);
   };
+  audio.addEventListener('playing', onPlaying, { once: true });
   audio.addEventListener('ended', onDone);
   audio.addEventListener('error', onFail);
   audio.play().catch(onFail);
@@ -1102,7 +1120,8 @@ function tts(text, onEnd) {
   const u = new SpeechSynthesisUtterance(text);
   u.lang = 'zh-CN';
   u.rate = 0.82;
-  u.pitch = 0.95;
+  u.pitch = 0.85;
+  if (narratorVoice) u.voice = narratorVoice;
   u.onend = () => { if (onEnd) onEnd(); };
   u.onerror = () => { if (onEnd) onEnd(); };
   speechSynthesis.speak(u);
@@ -1220,7 +1239,7 @@ window.skipHiddenChapter = function() {
   hiddenTypeToken++;
   speechSynthesis.cancel();
   cancelHiddenChapter();
-  returnToCheckin();
+  exitScene();
 };
 
 function cancelIntro() {
@@ -1415,6 +1434,7 @@ window.addEventListener('load', () => {
   const first = (startScene >= 1 && startScene <= 3) ? startScene : 1;
   buildScene(first, () => setTimeout(() => playSceneStart(first), 500));
 });
+window.exitScene = exitScene;
 </script>
 </body>
 </html>
