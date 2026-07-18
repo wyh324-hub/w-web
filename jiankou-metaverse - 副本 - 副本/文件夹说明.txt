@@ -1,0 +1,37 @@
+涧沟村 · 文件夹说明
+====================
+
+苏静洞（一个 HTML 搞定剧情+互动+程序3D）：
+  sujing.html          ← 打开这个：剧情、脚本、互动全在里面
+  models/sujing/       ← 只放 glb 模型文件（cave.glb 等）
+
+平西情报联络站：
+  w.html               ← 同样是一个 HTML 包含全部
+  models/              ← 平西的 glb
+
+古香道 · 穿越封锁线：
+  guxiangdao.html      ← 交通员送药、盘查、贝熙业自行车（三个场景）
+  models/handcar.glb   ← 独轮车模型（与 w.html 共用）
+  models/guxiangdao/*.glb  ← 关卡、士兵、贝熙业等模型
+  tools/ply_to_glb.py  ← 仅当需要三角网格 GLB 时使用（会损失精度）
+
+初心广场 · 对话历史：
+  chuxin.html
+  models/chuxinguangchang/
+    fudiaoqiang.glb    ← 场景一：浮雕墙+树木（无围栏）
+    chuxinting.glb     ← 场景二：初心亭
+    jinianbei.glb      ← 场景二：亭中纪念碑
+    laoren.glb         ← 场景二：老人（对话镜头+对话框）
+    liuyanqiang.glb    ← 场景三：仅留言墙
+
+英雄山 · 最后的抉择：
+  yingxiongshan.html
+  models/yingxiongshan/
+    jinianbei.glb      ← 场景二：近距离纪念碑
+  场景一/三为程序远山与大树
+
+说明：
+  · 不需要 data/sujing.js 了，已合并进 sujing.html
+  · glb 模型不能写进 html，必须单独放 models/ 里
+  · 读卡：苏静洞 → sujing.html，平西 → w.html，古香道 → guxiangdao.html，初心广场 → chuxin.html，英雄山 → yingxiongshan.html
+  · 也可用 URL 跳转：chuxin.html?scene=1 / yingxiongshan.html?scene=1

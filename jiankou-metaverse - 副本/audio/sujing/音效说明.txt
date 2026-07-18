@@ -1,0 +1,27 @@
+苏静洞 · 场景二音效文件
+========================
+
+把 mp3 放进本文件夹，场景二会自动播放。
+没有文件时，网页会用程序生成简易音效。
+
+需要的文件：
+  models/sujing/2248.wav  → 狗叫声（Meshy 导出，场景二旁白结束后播放）
+  models/sujing/y784.wav  → 脚步杂音（Meshy K5 山洞模型导出，场景二自动循环）
+  morse.mp3               → 发报「滴答」声（放本文件夹，可循环，音量宜小）
+
+狗叫不再使用程序合成音效，需确保 2248.wav 文件存在。
+
+免费音效网站：
+  https://freesound.org
+  https://mixkit.co/free-sound-effects/
+
+搜索关键词：
+  dog bark distant
+  footsteps gravel night
+  morse code telegraph click
+
+场景二播放时机：
+  旁白开始 → 发报滴答声
+  旁白结束（犬吠剧情）→ 狗叫 + 脚步声 + 手电光晃动
+
+测试：Live Server 打开 sujing.html → 点「场景二·发报」
